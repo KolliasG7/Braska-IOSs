@@ -1,9 +1,12 @@
 // lib/screens/settings_screen.dart — Braška settings
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/connection_provider.dart';
+import '../services/payload_history_service.dart';
 import '../theme.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,12 +19,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isTunnel = false;
 
+  // Payload history
+  List<PayloadRecord> _payloadHistory = [];
+
   @override
   void initState() {
     super.initState();
     final cp = context.read<ConnectionProvider>();
     _ctrl.text = cp.rawInput;
     _isTunnel  = cp.isTunnel;
+    _loadPayloadHistory();
+  }
+
+  Future<void> _loadPayloadHistory() async {
+    final history = await PayloadHistoryService.load();
+    if (mounted) setState(() => _payloadHistory = history);
   }
 
   void _onChanged(String v) {
@@ -36,6 +48,183 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await cp.connect(_ctrl.text.trim());
     if (!mounted) return;
     if (cp.connState != ConnState.error) Navigator.pop(context);
+  }
+
+  Future<void> _showPayloadInjector() async {
+    final res = await FilePicker.platform.pickFiles(
+      type: FileType.any,
+      allowMultiple: false,
+    );
+    if (res == null || res.files.single.path == null) return;
+
+    final file = File(res.files.single.path!);
+
+    // Pre-fill from history
+    String ip = '192.168.1.68';
+    String port = '9023';
+    if (_payloadHistory.isNotEmpty) {
+      ip = _payloadHistory.first.ip;
+      port = _payloadHistory.first.port.toString();
+    }
+
+    if (!mounted) return;
+    final ipCtrl = TextEditingController(text: ip);
+    final portCtrl = TextEditingController(text: port);
+
+    await showDialog(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: Bk.surface1,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: Bk.border)),
+        title: const Text('INJECT PAYLOAD',
+          style: TextStyle(color: Bk.white, fontSize: 14,
+            letterSpacing: 2, fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('File: ${res.files.single.name}',
+              style: const TextStyle(color: Bk.textSec, fontSize: 12)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ipCtrl,
+              style: const TextStyle(color: Bk.textPri, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'IP Address',
+                labelStyle: const TextStyle(color: Bk.textDim),
+                filled: true, fillColor: Bk.oled,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Bk.border)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Bk.border)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Bk.white, width: 1.5)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: portCtrl,
+              style: const TextStyle(color: Bk.textPri, fontSize: 13),
+              decoration: InputDecoration(
+                labelText: 'Port (usually 9020 or 9023)',
+                labelStyle: const TextStyle(color: Bk.textDim),
+                filled: true, fillColor: Bk.oled,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Bk.border)),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Bk.border)),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Bk.white, width: 1.5)),
+              ),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(c),
+            child: const Text('CANCEL',
+              style: TextStyle(color: Bk.textDim, fontSize: 11,
+                letterSpacing: 1.5)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Bk.white.withOpacity(0.1),
+              foregroundColor: Bk.white, elevation: 0,
+              side: const BorderSide(color: Bk.border)),
+            onPressed: () {
+              Navigator.pop(c);
+              _injectPayload(
+                ipCtrl.text.trim(),
+                int.tryParse(portCtrl.text.trim()) ?? 9023,
+                file,
+              );
+            },
+            child: const Text('SEND',
+              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 11,
+                letterSpacing: 2)),
+          ),
+        ],
+      ),
+    );
+
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        ipCtrl.dispose();
+        portCtrl.dispose();
+      }
+    });
+  }
+
+  Future<void> _injectPayload(String ip, int port, File file) async {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      backgroundColor: Bk.surface2,
+      content: Text('Connecting to $ip:$port...',
+        style: const TextStyle(color: Bk.white, fontSize: 12))));
+
+    try {
+      final socket = await Socket.connect(ip, port,
+        timeout: const Duration(seconds: 3));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      final fileName = file.path.split(Platform.pathSeparator).last;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: Bk.surface2,
+        content: Text('Sending $fileName...',
+          style: const TextStyle(color: Bk.textSec, fontSize: 12))));
+
+      await socket.addStream(file.openRead());
+      await socket.flush();
+      socket.destroy();
+
+      // Save to history
+      await PayloadHistoryService.save(PayloadRecord(
+        ip: ip,
+        port: port,
+        fileName: fileName,
+        filePath: file.path,
+        sentAt: DateTime.now(),
+      ));
+      _loadPayloadHistory();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('✓ Payload sent successfully!',
+          style: TextStyle(color: Colors.white, fontSize: 12,
+            fontWeight: FontWeight.w900)),
+        backgroundColor: Colors.green));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Error: $e',
+          style: const TextStyle(color: Colors.white, fontSize: 12)),
+        backgroundColor: Colors.red.shade900));
+    }
+  }
+
+  Future<void> _resendPayload(PayloadRecord record) async {
+    final file = File(record.filePath);
+    if (!await file.exists()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: Colors.red.shade900,
+        content: Text('File not found: ${record.fileName}',
+          style: const TextStyle(color: Colors.white, fontSize: 12))));
+      return;
+    }
+    _injectPayload(record.ip, record.port, file);
   }
 
   @override
@@ -187,6 +376,147 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
 
               const SizedBox(height: 28),
+
+              // ── Payload Injector ────────────────────────
+              const StatLabel('PAYLOAD INJECTOR'),
+              const SizedBox(height: 12),
+              GlassCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(children: [
+                      const Icon(Icons.rocket_launch_outlined,
+                        color: Bk.white, size: 15),
+                      const SizedBox(width: 8),
+                      const Text('Send Payload via TCP',
+                        style: TextStyle(color: Bk.textPri, fontSize: 13,
+                          fontWeight: FontWeight.w800)),
+                    ]),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Pick a .bin payload file and send it directly '
+                      'to your PS4 via raw TCP socket.',
+                      style: TextStyle(color: Bk.textSec, fontSize: 11,
+                        height: 1.5)),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      height: 44,
+                      child: ElevatedButton.icon(
+                        onPressed: _showPayloadInjector,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Bk.white.withOpacity(0.08),
+                          foregroundColor: Bk.white,
+                          side: const BorderSide(color: Bk.border),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                          elevation: 0,
+                        ),
+                        icon: const Icon(Icons.file_upload_outlined, size: 14),
+                        label: const Text('PICK & SEND PAYLOAD',
+                          style: TextStyle(fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 2)),
+                      ),
+                    ),
+
+                    // Recent payloads inside settings
+                    if (_payloadHistory.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Divider(color: Bk.border, height: 1),
+                      const SizedBox(height: 14),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('RECENT',
+                            style: TextStyle(color: Bk.textDim, fontSize: 9,
+                              letterSpacing: 2, fontWeight: FontWeight.w700)),
+                          GestureDetector(
+                            onTap: () async {
+                              await PayloadHistoryService.clear();
+                              _loadPayloadHistory();
+                            },
+                            child: const Text('CLEAR',
+                              style: TextStyle(color: Bk.textDim, fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5)),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ..._payloadHistory.take(5).map((record) {
+                        final age = DateTime.now().difference(record.sentAt);
+                        String timeAgo;
+                        if (age.inDays > 0) {
+                          timeAgo = '${age.inDays}d';
+                        } else if (age.inHours > 0) {
+                          timeAgo = '${age.inHours}h';
+                        } else if (age.inMinutes > 0) {
+                          timeAgo = '${age.inMinutes}m';
+                        } else {
+                          timeAgo = 'now';
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: GestureDetector(
+                            onTap: () => _resendPayload(record),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: Bk.surface2,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Bk.border),
+                              ),
+                              child: Row(children: [
+                                const Icon(Icons.rocket_launch_outlined,
+                                  color: Bk.textDim, size: 12),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(record.fileName,
+                                        style: const TextStyle(
+                                          color: Bk.textPri, fontSize: 11,
+                                          fontWeight: FontWeight.w700),
+                                        overflow: TextOverflow.ellipsis),
+                                      Text('${record.ip}:${record.port}',
+                                        style: const TextStyle(
+                                          color: Bk.textDim, fontSize: 9,
+                                          fontFamily: 'monospace')),
+                                    ],
+                                  ),
+                                ),
+                                Text(timeAgo,
+                                  style: const TextStyle(
+                                    color: Bk.textDim, fontSize: 9)),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Bk.white.withOpacity(0.08),
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: Bk.border),
+                                  ),
+                                  child: const Text('SEND',
+                                    style: TextStyle(
+                                      color: Bk.textSec, fontSize: 8,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1)),
+                                ),
+                              ]),
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
 
               // ── Current tunnel status ─────────────────
               if (cp.isConnected) ...[
