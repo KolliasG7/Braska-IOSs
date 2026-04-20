@@ -12,7 +12,7 @@ class FanControlCard extends StatefulWidget {
 
 class _FanControlCardState extends State<FanControlCard>
     with SingleTickerProviderStateMixin {
-  static const _min = 30.0, _max = 85.0;
+  static const _min = 20.0, _max = 85.0;
   late double _val;
   bool _writing = false;
   int? _confirmed;
