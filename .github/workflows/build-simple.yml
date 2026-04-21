@@ -1,0 +1,49 @@
+name: Build iOS IPA (Simple)
+
+on:
+  push:
+    branches: [chore/hardening-telemetry-errors]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Reason for manual trigger'
+        required: true
+        default: 'Manual build - Simple'
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.27.4'
+          channel: 'stable'
+          cache: true
+          
+      - name: Install dependencies
+        run: flutter pub get
+        
+      - name: Generate iOS Icons
+        run: flutter pub run flutter_launcher_icons:main
+            
+      - name: Build iOS (no code signing)
+        run: flutter build ios --release --no-codesign
+            
+      - name: Package into IPA
+        run: |
+          mkdir -p Payload
+          cp -r build/ios/iphoneos/Runner.app Payload/
+          zip -r Strawberry-Manager-Simple.ipa Payload/
+          rm -rf Payload/
+          
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Strawberry-Manager-Simple-IPA
+          path: Strawberry-Manager-Simple.ipa
+          retention-days: 30
