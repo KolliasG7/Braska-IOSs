@@ -59,12 +59,17 @@ class _FilesScreenState extends State<FilesScreen> {
   }
 
   void _navigate(String path) {
+    // History must only advance if the load will actually run; otherwise
+    // a rapid tap on a slow link would push a phantom entry while _load
+    // silently returned, leaving Back to pop to the wrong directory.
+    if (_loadInFlight) return;
     HapticFeedback.selectionClick();
     _history.add(path);
     _load(path);
   }
 
   void _goBack() {
+    if (_loadInFlight) return;
     if (_history.length > 1) {
       HapticFeedback.selectionClick();
       _history.removeLast();

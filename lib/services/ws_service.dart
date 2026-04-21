@@ -14,6 +14,11 @@ class WsService {
 
   WebSocketChannel? _ch;
   StreamSubscription? _sub;
+  // Cancellable reconnect handle. A prior implementation used Future.delayed,
+  // which cannot be cancelled — so when the Retry button (or updateUrl, or a
+  // state transition) kicked off a fresh _tryConnect, the stale timer would
+  // still fire and overwrite _ch/_sub, leaking the Retry-created socket.
+  Timer? _reconnectTimer;
   final _ctrl      = StreamController<TelemetryFrame>.broadcast();
   final _stateCtrl = StreamController<WsState>.broadcast();
 
@@ -34,10 +39,11 @@ class WsService {
 
   void connect() {
     if (_disposed) return;
-    // Close any prior channel/subscription before starting a fresh attempt,
-    // otherwise repeated connect() calls (e.g. the manual Retry button, or
-    // state transitions during a reconnect) can leak a WebSocket and a
-    // stream subscription that both keep firing in the background.
+    // Close any prior channel/subscription + cancel any pending reconnect
+    // timer before starting a fresh attempt, otherwise repeated connect()
+    // calls (e.g. the manual Retry button, or state transitions during a
+    // reconnect) can leak a WebSocket and a stream subscription that both
+    // keep firing in the background.
     disconnect();
     _retryS = 2;
     _tryConnect();
@@ -91,12 +97,21 @@ class WsService {
   void _scheduleReconnect() {
     if (_disposed) return;
     _setState(WsState.disconnected);
-    Future.delayed(Duration(seconds: _retryS), _tryConnect);
+    // Cancel any in-flight timer first so two overlapping onDone/onError
+    // callbacks can't stack up two pending _tryConnect calls.
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(Duration(seconds: _retryS), () {
+      _reconnectTimer = null;
+      _tryConnect();
+    });
     _retryS = (_retryS * 2).clamp(2, 30);
   }
 
   void disconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = null;
     _sub?.cancel();
+    _sub = null;
     _ch?.sink.close();
     _ch = null;
     _setState(WsState.disconnected);
