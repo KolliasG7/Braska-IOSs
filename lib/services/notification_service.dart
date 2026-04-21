@@ -11,8 +11,9 @@ class NotificationService {
   static Future<void> init() async {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios     = DarwinInitializationSettings();
+    const linux   = LinuxInitializationSettings(defaultActionName: 'Open');
     await _plugin.initialize(
-      const InitializationSettings(android: android, iOS: ios),
+      const InitializationSettings(android: android, iOS: ios, linux: linux),
     );
     _ready = true;
   }
