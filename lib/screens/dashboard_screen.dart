@@ -211,7 +211,7 @@ class _Nav extends StatelessWidget {
                   ]),
                 ),
               );
-            }),
+            }).toList(),
           ),
         ),
       ),
@@ -357,12 +357,13 @@ class _OverviewTab extends StatelessWidget {
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 120),
-      child: Column(children: [
-        for (int i = 0; i < cards.length; i++) ...[
-          _Anim(delay: Duration(milliseconds: 60 * i), child: cards[i]),
-          const SizedBox(height: 10),
-        ],
-      ]),
+      child: Column(
+        children: List.generate(cards.length * 2 - 1, (index) {
+          if (index.isOdd) return const SizedBox(height: 10);
+          final i = index ~/ 2;
+          return _Anim(delay: Duration(milliseconds: 60 * i), child: cards[i]);
+        }),
+      ),
     );
   }
 }
@@ -402,12 +403,13 @@ class _ControlTab extends StatelessWidget {
     cards.add(LedPanelCard(api: api));
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 120),
-      child: Column(children: [
-        for (int i = 0; i < cards.length; i++) ...[
-          _Anim(delay: Duration(milliseconds: 60 * i), child: cards[i]),
-          const SizedBox(height: 10),
-        ],
-      ]),
+      child: Column(
+        children: List.generate(cards.length * 2 - 1, (index) {
+          if (index.isOdd) return const SizedBox(height: 10);
+          final i = index ~/ 2;
+          return _Anim(delay: Duration(milliseconds: 60 * i), child: cards[i]);
+        }),
+      ),
     );
   }
 }
