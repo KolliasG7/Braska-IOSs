@@ -26,6 +26,8 @@ jobs:
           ls -la assets/ || echo "Assets directory not found"
           echo "📄 pubspec.yaml contents:"
           cat pubspec.yaml || echo "pubspec.yaml not found"
+          echo "📄 Checking pubspec.yaml syntax:"
+          flutter pub get --dry-run || echo "pubspec.yaml syntax check failed"
         
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
