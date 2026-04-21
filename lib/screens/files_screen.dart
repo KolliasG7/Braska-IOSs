@@ -263,9 +263,9 @@ class _Header extends StatelessWidget {
             ),
             const SizedBox(width: AppSpacing.md),
           ],
-          const Text('Files', style: TextStyle(
-            color: Bk.textPri, fontSize: 22,
-            fontWeight: FontWeight.w800, letterSpacing: -0.2)),
+          // No per-tab H1: the bottom nav already identifies the section,
+          // and per-tab H1s were ghosting through each other during the
+          // cross-fade. Stretch the breadcrumb row to fill the space.
           const Spacer(),
           GlassIconButton(
             icon: Icons.refresh_outlined,

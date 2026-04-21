@@ -31,6 +31,18 @@ class PressScale extends StatefulWidget {
 class _PressScaleState extends State<PressScale> {
   bool _down = false;
 
+  @override
+  void didUpdateWidget(PressScale old) {
+    super.didUpdateWidget(old);
+    // If the parent disables the button while the finger is still down,
+    // our `onPointerUp` won't flip `_down` back to false because `_set`
+    // short-circuits on `!enabled`. Without this reset, `AnimatedScale`
+    // stays stuck at `pressedScale` until the user taps something else.
+    if (!widget.enabled && _down) {
+      setState(() => _down = false);
+    }
+  }
+
   void _set(bool v) {
     if (!widget.enabled) return;
     if (_down != v) setState(() => _down = v);
@@ -91,15 +103,24 @@ class FadeThroughRoute<T> extends PageRouteBuilder<T> {
       );
 }
 
-/// `AnimatedSwitcher` transition builder for tab bodies: scale up from
-/// 0.98 with a fade in, no horizontal slide. iOS tab bars never slide
-/// their content sideways — the shared nav pill below carries the spatial
-/// meaning, so the body just needs to reveal cleanly.
+/// `AnimatedSwitcher` transition builder for tab bodies: phased
+/// fade-through, no horizontal slide. A naive cross-fade on glass
+/// cards produces visible ghosting because both layers are
+/// semi-transparent — you end up reading two stacked H1s through
+/// each other. We avoid that by keeping each body invisible until
+/// the last ~45% of its animation, so at any moment only one tab is
+/// on stage. The outgoing body vanishes in the first ~45% of its
+/// reverse, there's a brief empty gap, then the incoming body fades
+/// up with a tiny 0.99 → 1.0 scale cue. The shared nav pill below
+/// carries the spatial meaning; the body just needs to reveal cleanly.
 Widget tabBodyTransition(Widget child, Animation<double> anim) {
-  final curved = CurvedAnimation(parent: anim, curve: AppCurves.enter);
-  final scale  = Tween<double>(begin: 0.98, end: 1.0).animate(curved);
+  final phase = CurvedAnimation(
+    parent: anim,
+    curve: const Interval(0.55, 1.0, curve: Curves.easeOut),
+  );
+  final scale = Tween<double>(begin: 0.99, end: 1.0).animate(phase);
   return FadeTransition(
-    opacity: curved,
+    opacity: phase,
     child: ScaleTransition(scale: scale, child: child),
   );
 }

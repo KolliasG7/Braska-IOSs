@@ -98,14 +98,16 @@ class _TerminalScreenState extends State<TerminalScreen>
               AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.sm),
           child: GlassCard(
             padding: const EdgeInsets.all(AppSpacing.md),
-            child: ListView.builder(
-              controller: _scrollCtrl,
-              itemCount: _lines.length + (_partial.isNotEmpty ? 1 : 0),
-              itemBuilder: (_, i) {
-                final text = i < _lines.length ? _lines[i] : _partial;
-                return Text(text, style: T.mono);
-              },
-            ),
+            child: (_lines.isEmpty && _partial.isEmpty)
+                ? _IdlePrompt(connected: _connected)
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    itemCount: _lines.length + (_partial.isNotEmpty ? 1 : 0),
+                    itemBuilder: (_, i) {
+                      final text = i < _lines.length ? _lines[i] : _partial;
+                      return Text(text, style: T.mono);
+                    },
+                  ),
           ),
         ),
       ),
@@ -154,6 +156,40 @@ class _TerminalScreenState extends State<TerminalScreen>
   }
 }
 
+class _IdlePrompt extends StatelessWidget {
+  const _IdlePrompt({required this.connected});
+  final bool connected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.topLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Text(
+            r'$ ',
+            style: T.mono.copyWith(
+              color: Bk.accent.withOpacity(0.55),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          Text(
+            connected
+                ? 'session idle · type a command to begin'
+                : 'connecting…',
+            style: T.mono.copyWith(
+              color: Bk.textSec.withOpacity(0.55),
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Header extends StatelessWidget {
   const _Header({
     required this.connected,
@@ -180,10 +216,9 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(width: AppSpacing.md),
         ],
-        const Text('Shell', style: TextStyle(
-          color: Bk.textPri, fontSize: 22,
-          fontWeight: FontWeight.w800, letterSpacing: -0.2)),
-        const SizedBox(width: AppSpacing.md),
+        // No per-tab H1: the bottom nav already tells you where you are,
+        // and two H1s ("Shell"/"Files") rendered through each other is
+        // the ghost-text artifact that killed the old cross-fade.
         GlassPill(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           child: Row(mainAxisSize: MainAxisSize.min, children: [

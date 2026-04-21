@@ -94,18 +94,20 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   Expanded(
                     child: AnimatedSwitcher(
-                      // Peer-destination transition: fade + subtle scale,
-                      // no horizontal slide. The shared nav pill below
-                      // carries the spatial meaning so the body just
-                      // needs to reveal cleanly with a little depth cue.
+                      // Phased fade-through via [tabBodyTransition]: the
+                      // outgoing body vanishes in the first ~45% of the
+                      // reverse, then the incoming body fades up in the
+                      // last ~45% of the forward. The brief empty gap in
+                      // the middle is what prevents two glass layers from
+                      // blending into a ghosted mess.
                       duration: reduceMotion
                           ? Duration.zero
-                          : const Duration(milliseconds: 300),
+                          : const Duration(milliseconds: 340),
                       reverseDuration: reduceMotion
                           ? Duration.zero
-                          : const Duration(milliseconds: 200),
-                      switchInCurve: AppCurves.enter,
-                      switchOutCurve: AppCurves.exit,
+                          : const Duration(milliseconds: 220),
+                      switchInCurve: Curves.linear,
+                      switchOutCurve: Curves.linear,
                       layoutBuilder: stackedLayoutBuilder,
                       transitionBuilder: tabBodyTransition,
                       child: KeyedSubtree(
