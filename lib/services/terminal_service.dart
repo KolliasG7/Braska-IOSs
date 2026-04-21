@@ -1,6 +1,4 @@
 // lib/services/terminal_service.dart
-// Manages a single WebSocket connection to /ws/terminal
-// Bidirectional: send text input, receive terminal output strings
 import 'dart:async';
 import 'dart:convert';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -30,7 +28,6 @@ class TerminalService {
 
   void connect() {
     if (_disposed) return;
-    print('[TermService] connect() forcing disconnect then tryConnect. retryS=$_retryS');
     _retryS = 2;
     disconnect();
     _tryConnect();
@@ -38,7 +35,6 @@ class TerminalService {
 
   void _tryConnect() {
     if (_disposed) return;
-    print('[TermService] _tryConnect! baseUrl=$_baseUrl');
     _setState(TermState.connecting);
 
     Uri uri;
@@ -54,25 +50,24 @@ class TerminalService {
         uri = Uri.parse('ws://$_baseUrl/ws/terminal?token=$t');
       }
     } catch (_) { 
-      print('[TermService] Invalid URI, delaying reconnect.');
-      _scheduleReconnect(); return; 
+      _scheduleReconnect();
+      return; 
     }
 
     try {
-      print('[TermService] WebSocketChannel.connect: $uri');
       _ch = WebSocketChannel.connect(uri);
       _ch!.ready.then((_) {
         if (_disposed) return;
-        print('[TermService] WebSocket .ready! Marking as CONNECTED.');
         _retryS = 2;
         _setState(TermState.connected);
       }).catchError((e) {
-        print('[TermService] WebSocket ready error: $e');
-        _scheduleReconnect();
+        if (!_disposed) {
+          _scheduleReconnect();
+        }
       });
     } catch (e) { 
-      print('[TermService] connection error: $e');
-      _scheduleReconnect(); return; 
+      _scheduleReconnect();
+      return; 
     }
 
     _sub = _ch!.stream.listen(
@@ -84,12 +79,14 @@ class TerminalService {
         }
       },
       onError: (e) {
-        print('[TermService] WebSocket onError! $e');
-        _scheduleReconnect();
+        if (!_disposed) {
+          _scheduleReconnect();
+        }
       },
       onDone:  () {
-        print('[TermService] WebSocket onDone! scheduling reconnect.');
-        _scheduleReconnect();
+        if (!_disposed) {
+          _scheduleReconnect();
+        }
       },
       cancelOnError: true,
     );
@@ -97,16 +94,23 @@ class TerminalService {
 
   /// Send raw keystrokes/text to the shell
   void sendInput(String text) {
-    try { _ch?.sink.add(text); } catch (_) {}
+    try { 
+      _ch?.sink.add(text); 
+    } catch (_) {}
   }
 
   /// Send terminal resize
   void sendResize(int cols, int rows) {
     final msg = jsonEncode({'type': 'resize', 'cols': cols, 'rows': rows});
-    try { _ch?.sink.add(msg); } catch (_) {}
+    try { 
+      _ch?.sink.add(msg); 
+    } catch (_) {}
   }
 
-  void _setState(TermState s) { _state = s; _stateCtrl.add(s); }
+  void _setState(TermState s) { 
+    _state = s; 
+    _stateCtrl.add(s); 
+  }
 
   void _scheduleReconnect() {
     if (_disposed) return;
