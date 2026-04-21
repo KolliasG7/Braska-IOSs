@@ -42,7 +42,6 @@ class _FanControlCardState extends State<FanControlCard> {
   Future<void> _commit(double v) async {
     final t = v.round();
     final req = ++_requestId;
-    HapticFeedback.selectionClick();
     setState(() { _writing = true; _err = null; });
     try {
       final c = await widget.api.setFanThreshold(t);
@@ -245,11 +244,16 @@ class _GradientSlider extends StatelessWidget {
         onChanged(v);
       }
 
+      // `onTapDown` used to also call `onChangeEnd`, which set `_writing =
+      // true` and disabled the slider *before* the gesture arena decided
+      // between tap and drag — so any drag that started from a press was
+      // silently cancelled. We now only preview the value on press and
+      // commit on release (tap) or drag-end.
       return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: enabled
-            ? (d) { drag(d.localPosition);
-                    onChangeEnd(_valueFor(d.localPosition.dx, w)); }
+        onTapDown: enabled ? (d) => drag(d.localPosition) : null,
+        onTapUp: enabled
+            ? (d) => onChangeEnd(_valueFor(d.localPosition.dx, w))
             : null,
         onHorizontalDragUpdate: enabled ? (d) => drag(d.localPosition) : null,
         onHorizontalDragEnd: enabled ? (_) => onChangeEnd(value) : null,
