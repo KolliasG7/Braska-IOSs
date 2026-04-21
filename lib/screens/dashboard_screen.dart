@@ -73,48 +73,77 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: SlideTransition(
         position: _entranceSlide,
         child: Scaffold(
-          backgroundColor: Bk.oled,
+          backgroundColor: const Color(0xFF0A0A0A),
           extendBody: true,
-          body: SafeArea(
-            bottom: false,
-            child: Column(children: [
-              _TopBar(
-                frame: frame,
-                ws: cp.ws,
-                onSettings: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(context,
-                    _SlideUpRoute(child: const SettingsScreen()));
-                },
-              ),
-              Expanded(
-                child: AnimatedSwitcher(
-                  duration: Duration(milliseconds: animMs),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, animation) {
-                    final isForward = _tab >= _prevTab;
-                    final beginX = isForward ? 0.04 : -0.04;
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: Offset(beginX, 0),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
+          body: CustomScrollView(
+            slivers: [
+              // Modern App Bar
+              SliverAppBar(
+                expandedHeight: 140,
+                floating: false,
+                pinned: true,
+                backgroundColor: const Color(0xFF0A0A0A),
+                surfaceTintColor: Colors.transparent,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1A1A2E),
+                          const Color(0xFF0A0A0A),
+                        ],
                       ),
-                    );
-                  },
-                  child: KeyedSubtree(
-                    key: ValueKey<int>(_tab),
-                    child: _buildTabContent(frame, cp),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 60, 20, 20),
+                      child: _ModernTopBar(
+                        frame: frame,
+                        ws: cp.ws,
+                        onSettings: () {
+                          HapticFeedback.selectionClick();
+                          Navigator.push(context,
+                            _SlideUpRoute(child: const SettingsScreen()));
+                        },
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ]),
+              
+              // Content
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
+                sliver: SliverFillRemaining(
+                  child: AnimatedSwitcher(
+                    duration: Duration(milliseconds: animMs),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      final isForward = _tab >= _prevTab;
+                      final beginX = isForward ? 0.04 : -0.04;
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: Offset(beginX, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: KeyedSubtree(
+                      key: ValueKey<int>(_tab),
+                      child: _buildTabContent(frame, cp),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          bottomNavigationBar: _Nav(
+          bottomNavigationBar: _ModernNav(
             selected: _tab,
             reduceMotion: cp.reduceMotion,
             onTap: (i) {
@@ -151,10 +180,10 @@ class _SlideUpRoute<T> extends PageRouteBuilder<T> {
       );
 }
 
-// ── 6-tab nav bar ──────────────────────────────────────────────────────────
+// ── Modern Navigation Bar ─────────────────────────────────────────────────────
 
-class _Nav extends StatelessWidget {
-  const _Nav({
+class _ModernNav extends StatelessWidget {
+  const _ModernNav({
     required this.selected,
     required this.onTap,
     required this.hasCpuAlert,
@@ -166,39 +195,36 @@ class _Nav extends StatelessWidget {
   final bool reduceMotion;
 
   static const _tabs = [
-    (icon: Icons.monitor_heart_outlined, label: 'MONITOR', badge: false),
-    (icon: Icons.tune_outlined,          label: 'CONTROL', badge: false),
-    (icon: Icons.memory_outlined,        label: 'PROC',    badge: true),
-    (icon: Icons.terminal_outlined,      label: 'SHELL',   badge: false),
-    (icon: Icons.folder_outlined,        label: 'FILES',   badge: false),
-    (icon: Icons.power_settings_new,     label: 'POWER',   badge: false),
+    (icon: Icons.monitor_heart_outlined, label: 'Monitor', badge: false),
+    (icon: Icons.tune_outlined,          label: 'Control', badge: false),
+    (icon: Icons.memory_outlined,        label: 'Process', badge: true),
+    (icon: Icons.terminal_outlined,      label: 'Shell',   badge: false),
+    (icon: Icons.folder_outlined,        label: 'Files',   badge: false),
+    (icon: Icons.power_settings_new,     label: 'Power',   badge: false),
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Bk.surface1,
-          borderRadius: BorderRadius.circular(26),
-          border: Border.all(color: Bk.border, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.6),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A2E),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(_tabs.length, (i) {
               final tab = _tabs[i];
               final sel = i == selected;
-              return _NavItem(
+              return _ModernNavItem(
                 icon: tab.icon,
                 label: tab.label,
                 badge: tab.badge && hasCpuAlert,
@@ -208,6 +234,77 @@ class _Nav extends StatelessWidget {
               );
             }),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ModernNavItem extends StatelessWidget {
+  const _ModernNavItem({
+    required this.icon,
+    required this.label,
+    required this.badge,
+    required this.selected,
+    required this.reduceMotion,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool badge, selected, reduceMotion;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final ms = reduceMotion ? 1 : 200;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: AnimatedContainer(
+        duration: Duration(milliseconds: ms),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected 
+              ? const Color(0xFF4CAF50)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              children: [
+                Icon(
+                  icon,
+                  color: selected ? Colors.white : Colors.white.withOpacity(0.7),
+                  size: 20,
+                ),
+                if (badge)
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.white.withOpacity(0.7),
+                fontSize: 10,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -283,6 +380,234 @@ class _NavItem extends StatelessWidget {
 
 }
 
+// ── Modern Top bar ──────────────────────────────────────────────────────────
+
+class _ModernTopBar extends StatelessWidget {
+  const _ModernTopBar({required this.frame, required this.ws, required this.onSettings});
+  final TelemetryFrame? frame;
+  final WsService? ws;
+  final VoidCallback onSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final temp = frame?.fan?.apuTempC ?? 0;
+    final cpu  = frame?.cpu?.percent  ?? 0;
+    final rpm  = frame?.fan?.rpm      ?? 0;
+    final tempHot = temp >= 88;
+
+    return Row(
+      children: [
+        // App name + uptime
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Strawberry Manager',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 400),
+                child: frame != null
+                    ? Text(
+                        key: const ValueKey('uptime'),
+                        'Uptime: ${frame!.uptimeFormatted}',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                      )
+                    : const Text(
+                        key: const ValueKey('connecting'),
+                        'Connecting...',
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.7),
+                          fontSize: 12,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+
+        // Live stat chips
+        if (frame != null) ...[
+          _ModernChip(
+            Icons.thermostat_outlined,
+            '${temp.toStringAsFixed(0)}°',
+            tempHot ? Colors.redAccent : const Color(0xFF4CAF50),
+          ),
+          const SizedBox(width: 8),
+          _ModernChip(
+            Icons.memory_outlined,
+            '${cpu.toStringAsFixed(0)}%',
+            cpu > 80 ? Colors.orangeAccent : const Color(0xFF2196F3),
+          ),
+          const SizedBox(width: 8),
+          _ModernChip(
+            Icons.air_outlined,
+            rpm == 0 ? 'idle' : '$rpm',
+            const Color(0xFF9C27B0),
+          ),
+        ],
+
+        const SizedBox(width: 12),
+
+        // WS status dot + Settings
+        Row(
+          children: [
+            StreamBuilder<WsState>(
+              stream: ws?.state,
+              builder: (_, snap) {
+                final s = snap.data ?? WsState.disconnected;
+                return _ModernStatusDot(
+                  color: s == WsState.connected   ? const Color(0xFF4CAF50)
+                       : s == WsState.connecting  ? Colors.orange
+                       : Colors.grey,
+                  pulse: s == WsState.connected,
+                );
+              },
+            ),
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: onSettings,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.settings_outlined,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _ModernChip extends StatelessWidget {
+  const _ModernChip(this.icon, this.label, this.color);
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: color.withOpacity(0.5),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: color,
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModernStatusDot extends StatefulWidget {
+  const _ModernStatusDot({required this.color, required this.pulse});
+  final Color color;
+  final bool pulse;
+  @override State<_ModernStatusDot> createState() => _ModernStatusDotState();
+}
+
+class _ModernStatusDotState extends State<_ModernStatusDot>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _c;
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1500))
+      ..repeat(reverse: true);
+  }
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (_, __) {
+      final opacity = widget.pulse
+          ? 0.6 + _c.value * 0.4
+          : 1.0;
+      return Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: widget.color.withOpacity(opacity),
+          boxShadow: widget.pulse
+              ? [
+                  BoxShadow(
+                      color: widget.color.withOpacity(0.6 * _c.value),
+                      blurRadius: 8, spreadRadius: 2)
+                ]
+              : null,
+        ),
+      );
+    },
+  );
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip(this.icon, this.val, this.color);
+  final IconData icon; final String val; final Color color;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, color: color.withOpacity(0.6), size: 11),
+      const SizedBox(width: 3),
+      AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        transitionBuilder: (child, anim) =>
+            FadeTransition(opacity: anim, child: child),
+        child: Text(
+          val,
+          key: ValueKey<String>(val),
+          style: TextStyle(
+            color: color, fontSize: 11, fontWeight: FontWeight.w800),
+        ),
+      ),
+    ],
+  );
+}
+
 // ── Top bar ────────────────────────────────────────────────────────────────
 
 class _TopBar extends StatelessWidget {
@@ -316,7 +641,7 @@ class _TopBar extends StatelessWidget {
                       color: Bk.textDim, fontSize: 9, letterSpacing: 1.5),
                   )
                 : const Text(
-                    key: ValueKey('connecting'),
+                    key: const ValueKey('connecting'),
                     'MANAGER',
                     style: TextStyle(
                       color: Bk.textDim, fontSize: 9, letterSpacing: 1.5),

@@ -196,7 +196,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 color: Colors.white, fontSize: 24,
                 fontWeight: FontWeight.w700,
               )),
-              titlePadding: const EdgeInsets.only(left: 76, bottom: 16),
+              titlePadding: const EdgeInsets.only(bottom: 16),
               background: Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(

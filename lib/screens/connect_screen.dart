@@ -175,89 +175,193 @@ class _ConnectScreenState extends State<ConnectScreen> {
     final connecting = cp.connState == ConnState.connecting;
 
     return Scaffold(
-      backgroundColor: Bk.oled,
+      backgroundColor: const Color(0xFF0A0A0A),
       resizeToAvoidBottomInset: false,
-      body: Stack(children: [
-        SafeArea(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFF1A1A2E),
+              const Color(0xFF0A0A0A),
+            ],
+          ),
+        ),
+        child: SafeArea(
           child: Form(
             key: _formKey,
             child: SingleChildScrollView(
               child: Column(children: [
                 const SizedBox(height: 60),
 
-                const _StrawberryLogo(),
-                const SizedBox(height: 28),
-
-                const Text('STRAWBERRY', style: TextStyle(
-                  color: Bk.textPri, fontSize: 28,
-                  fontWeight: FontWeight.w900, letterSpacing: 5)),
-                const SizedBox(height: 6),
-                const Text('MANAGER', style: TextStyle(
-                  color: Bk.white, fontSize: 12,
-                  fontWeight: FontWeight.w900, letterSpacing: 6)),
-                const SizedBox(height: 6),
-                const Text('PLAYSTATION 4 · LINUX', style: TextStyle(
-                  color: Bk.textDim, fontSize: 10, letterSpacing: 4)),
+                // Modern Logo Section
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.2),
+                            width: 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              'Strawberry Manager',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 32,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'PlayStation 4 · Linux Control',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.7),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
                 const SizedBox(height: 40),
 
-                // Input card
+                // Modern Connection Card
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: GlassCard(
-                    padding: const EdgeInsets.all(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1A1A2E),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withOpacity(0.1),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(children: [
-                          Icon(
-                            _isTunnel
-                              ? Icons.cloud_outlined
-                              : Icons.wifi_outlined,
-                            color: Bk.white, size: 14),
-                          const SizedBox(width: 8),
-                          Text(
-                            _isTunnel ? 'CLOUDFLARE TUNNEL' : 'LOCAL NETWORK',
-                            style: const TextStyle(
-                              color: Bk.textSec,
-                              fontSize: 9, letterSpacing: 2.5,
-                              fontWeight: FontWeight.w900)),
-                        ]),
-                        const SizedBox(height: 14),
+                        // Connection Type Selector
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                _isTunnel
+                                    ? Icons.cloud_outlined
+                                    : Icons.wifi_outlined,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _isTunnel ? 'Cloudflare Tunnel' : 'Local Network',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _isTunnel
+                                        ? 'Connect via Cloudflare tunnel'
+                                        : 'Connect to local PS4 network',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.6),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        
+                        // Modern Input Field
                         TextFormField(
                           controller: _ctrl,
                           onChanged: _onChanged,
                           style: const TextStyle(
-                            color: Bk.textPri, fontSize: 15,
-                            fontWeight: FontWeight.w700),
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500),
                           decoration: InputDecoration(
                             hintText: _isTunnel
                               ? 'https://xxxx.trycloudflare.com'
                               : '192.168.1.116:8765',
-                            hintStyle: const TextStyle(
-                              color: Bk.textDim, fontSize: 13),
+                            hintStyle: TextStyle(
+                              color: Colors.white.withOpacity(0.4),
+                              fontSize: 14,
+                            ),
                             filled: true,
-                            fillColor: Bk.oled,
-                            prefixIcon: Icon(
-                              _isTunnel
-                                ? Icons.link_outlined
-                                : Icons.lan_outlined,
-                              color: Bk.textDim, size: 16),
+                            fillColor: Colors.white.withOpacity(0.05),
+                            prefixIcon: Container(
+                              padding: const EdgeInsets.all(12),
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                _isTunnel
+                                    ? Icons.link_outlined
+                                    : Icons.lan_outlined,
+                                color: Colors.white.withOpacity(0.7),
+                                size: 20,
+                              ),
+                            ),
                             border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Bk.border)),
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                            ),
                             enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Bk.border)),
+                              borderRadius: BorderRadius.circular(16),
+                              borderSide: BorderSide(
+                                color: Colors.white.withOpacity(0.2),
+                              ),
+                            ),
                             focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(16),
                               borderSide: const BorderSide(
-                                color: Bk.white, width: 1.5)),
-                            errorBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Bk.border)),
+                                color: Color(0xFF4CAF50),
+                                width: 2,
+                              ),
+                            ),
                             contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 14),
+                              horizontal: 20, vertical: 16),
                           ),
                           validator: (v) =>
                             (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -271,27 +375,39 @@ class _ConnectScreenState extends State<ConnectScreen> {
                             onTap: () => _useTunnelUrl(_lastTunnelUrl!),
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 8),
+                                horizontal: 16, vertical: 12),
                               decoration: BoxDecoration(
-                                color: Bk.surface2,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Bk.border),
+                                color: Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.2),
+                                ),
                               ),
                               child: Row(children: [
                                 const Icon(Icons.history_outlined,
-                                  color: Bk.textDim, size: 13),
+                                  color: Colors.white, size: 16),
                                 const SizedBox(width: 8),
                                 Expanded(child: Text(
                                   _lastTunnelUrl!.replaceAll('https://', ''),
                                   style: const TextStyle(
-                                    color: Bk.textSec, fontSize: 11),
+                                    color: Colors.white,
+                                    fontSize: 12)),
                                   overflow: TextOverflow.ellipsis)),
-                                const SizedBox(width: 6),
-                                const Text('USE',
-                                  style: TextStyle(
-                                    color: Bk.textSec, fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 1.5)),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF4CAF50),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Text('USE',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                    )),
+                                ),
                               ]),
                             ),
                           ),
@@ -303,49 +419,97 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
                 const SizedBox(height: 14),
 
-                // Connect button — no spinner, just text
+                // Modern Connect Button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: SizedBox(
                     width: double.infinity,
-                    height: 54,
+                    height: 56,
                     child: ElevatedButton(
                       onPressed: connecting ? null : _connect,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Bk.white.withOpacity(0.1),
-                        foregroundColor: Bk.white,
-                        side: BorderSide(
-                          color: connecting ? Bk.border : Bk.white,
-                          width: 1),
+                        backgroundColor: connecting 
+                            ? Colors.white.withOpacity(0.1)
+                            : const Color(0xFF4CAF50),
+                        foregroundColor: Colors.white,
+                        elevation: connecting ? 0 : 8,
+                        shadowColor: connecting 
+                            ? Colors.transparent
+                            : const Color(0xFF4CAF50).withOpacity(0.3),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
-                        elevation: 0,
                       ),
-                      child: Text(
-                        connecting ? 'CONNECTING…' : 'CONNECT',
-                        style: TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w900,
-                          letterSpacing: 4,
-                          color: connecting ? Bk.textDim : Bk.white)),
+                      child: connecting
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                const Text(
+                                  'CONNECTING',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const Text(
+                              'CONNECT',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
                     ),
                   ),
                 ),
 
-                // Error
+                // Modern Error Display
                 if (cp.error != null) ...[
                   const SizedBox(height: 12),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: GlassCard(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Colors.red.withOpacity(0.3),
+                        ),
+                      ),
                       child: Row(children: [
-                        const Icon(Icons.error_outline,
-                          color: Bk.white, size: 15),
-                        const SizedBox(width: 10),
-                        Expanded(child: Text(cp.error!,
-                          style: const TextStyle(
-                            color: Bk.textSec, fontSize: 12))),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(
+                            Icons.error_outline,
+                            color: Colors.redAccent,
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            cp.error!,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
                       ]),
                     ),
                   ),
@@ -353,24 +517,36 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
                 const SizedBox(height: 16),
 
+                // Modern Payload Injector Button
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 56,
                     child: OutlinedButton.icon(
                       onPressed: _showPayloadInjector,
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Bk.white,
-                        side: const BorderSide(color: Bk.border, width: 1),
+                        foregroundColor: Colors.white,
+                        side: BorderSide(
+                          color: Colors.white.withOpacity(0.3),
+                          width: 1,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16)),
                       ),
-                      icon: const Icon(Icons.rocket_launch_outlined, size: 15, color: Bk.textSec),
-                      label: const Text('INJECT LINUX PAYLOAD',
+                      icon: const Icon(
+                        Icons.rocket_launch_outlined,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                      label: const Text(
+                        'Inject Linux Payload',
                         style: TextStyle(
-                          fontSize: 11, fontWeight: FontWeight.w900,
-                          letterSpacing: 2.5, color: Bk.textSec)),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
                     ),
                   ),
                 ),
