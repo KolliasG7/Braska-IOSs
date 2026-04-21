@@ -47,13 +47,23 @@ class _Root extends StatelessWidget {
     }
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 500),
+      duration: AppDurations.med,
+      reverseDuration: AppDurations.fast,
       switchInCurve:  AppCurves.enter,
       switchOutCurve: AppCurves.exit,
+      // Stack the incoming on top of the outgoing so the fade-through
+      // doesn't show the gradient flickering underneath both.
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.center,
+        children: <Widget>[
+          ...previousChildren,
+          if (currentChild != null) currentChild,
+        ],
+      ),
       transitionBuilder: (child, anim) => FadeTransition(
         opacity: anim,
         child: SlideTransition(
-          position: Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero).animate(anim),
+          position: Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero).animate(anim),
           child: child)),
       child: switch (cp.connState) {
         ConnState.connected =>

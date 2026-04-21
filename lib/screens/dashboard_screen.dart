@@ -36,13 +36,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     super.initState();
     _entranceCtrl = AnimationController(
       vsync: this,
-      duration: AppDurations.slow,
+      duration: AppDurations.med,
     )..forward();
-    _entranceFade  = CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOut);
+    _entranceFade  = CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter);
     _entranceSlide = Tween<Offset>(
-      begin: const Offset(0, 0.03),
+      begin: const Offset(0, 0.02),
       end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceCtrl, curve: Curves.easeOutCubic));
+    ).animate(CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter));
   }
 
   @override
@@ -94,12 +94,29 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   Expanded(
                     child: AnimatedSwitcher(
-                      duration: reduceMotion ? Duration.zero : AppDurations.slow,
+                      // The old 520ms slow + 0.08 slide made every tab tap
+                      // feel like it stuttered. iOS segmented content swaps
+                      // in ~220ms; match that and keep the slide subtle.
+                      duration: reduceMotion
+                          ? Duration.zero
+                          : AppDurations.fast,
+                      reverseDuration: reduceMotion
+                          ? Duration.zero
+                          : const Duration(milliseconds: 160),
                       switchInCurve: AppCurves.enter,
                       switchOutCurve: AppCurves.exit,
+                      // Put the incoming child on top so the outgoing one
+                      // fades out underneath without ghosting the gradient.
+                      layoutBuilder: (currentChild, previousChildren) => Stack(
+                        alignment: Alignment.topCenter,
+                        children: <Widget>[
+                          ...previousChildren,
+                          if (currentChild != null) currentChild,
+                        ],
+                      ),
                       transitionBuilder: (child, animation) {
                         final isForward = _tab >= _prevTab;
-                        final beginX = isForward ? 0.08 : -0.08;
+                        final beginX = isForward ? 0.03 : -0.03;
                         return FadeTransition(
                           opacity: animation,
                           child: SlideTransition(
@@ -352,10 +369,7 @@ class _MonitorTab extends StatelessWidget {
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 120),
       itemCount: cards.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (_, i) => _StaggerIn(
-        delay: Duration(milliseconds: 40 * i),
-        child: cards[i],
-      ),
+      itemBuilder: (_, i) => cards[i],
     );
   }
 }
@@ -411,10 +425,7 @@ class _ControlTab extends StatelessWidget {
           AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, 120),
       itemCount: cards.length,
       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (_, i) => _StaggerIn(
-        delay: Duration(milliseconds: 40 * i),
-        child: cards[i],
-      ),
+      itemBuilder: (_, i) => cards[i],
     );
   }
 }
@@ -586,38 +597,8 @@ class _ErrorCard extends StatelessWidget {
   );
 }
 
-// ── Staggered card entrance ────────────────────────────────────────────────
-
-class _StaggerIn extends StatefulWidget {
-  const _StaggerIn({required this.child, required this.delay});
-  final Widget child;
-  final Duration delay;
-  @override State<_StaggerIn> createState() => _StaggerInState();
-}
-
-class _StaggerInState extends State<_StaggerIn>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-  late Animation<double>   _fade;
-  late Animation<Offset>   _slide;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-        vsync: this, duration: AppDurations.slow);
-    _fade  = CurvedAnimation(parent: _c, curve: Curves.easeOut);
-    _slide = Tween<Offset>(begin: const Offset(0, 0.05), end: Offset.zero)
-        .animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-    Future.delayed(widget.delay, () { if (mounted) _c.forward(); });
-  }
-
-  @override
-  void dispose() { _c.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => FadeTransition(
-    opacity: _fade,
-    child: SlideTransition(position: _slide, child: widget.child),
-  );
-}
+// The previous `_StaggerIn` helper cross-fade-slid every card on every tab
+// swap, which compounded with the tab transition itself and made the app
+// feel like it was constantly re-introducing itself. The dashboard's
+// single top-level entrance already covers first mount; individual card
+// entrances on tab swap weren't adding signal, only latency.

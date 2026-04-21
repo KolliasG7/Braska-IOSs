@@ -592,7 +592,9 @@ class _ModeSegmented extends StatelessWidget {
           // Sliding glass thumb. Uses an eased curve and the accent for a
           // soft glow so it feels like the pill physically moves.
           AnimatedPositioned(
-            duration: reduceMotion ? Duration.zero : AppDurations.slow,
+            // 520ms was molasses for a two-state toggle; iOS segmented
+            // controls snap in ~220ms so the pill feels physical.
+            duration: reduceMotion ? Duration.zero : AppDurations.fast,
             curve: AppCurves.emphasized,
             left: isTunnel ? segW : 0,
             top: 0,
