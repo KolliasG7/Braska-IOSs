@@ -582,7 +582,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
                             record: record,
                             onTap: () => _resendPayload(record),
                           ),
-                        ),
+                        ).toList(),
                       ],
                     ),
                   ),
