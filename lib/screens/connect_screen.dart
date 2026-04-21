@@ -168,9 +168,20 @@ class _ConnectScreenState extends State<ConnectScreen> {
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Column(children: [
-                const SizedBox(height: 56),
-                _HeroLogo(),
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: 48),
+                const _HeroTitle(),
+                const SizedBox(height: AppSpacing.xl),
+
+                if (cp.rawInput.isNotEmpty || _lastTunnelUrl != null) ...[
+                  _StatusPanel(
+                    lastHost: cp.rawInput.isNotEmpty
+                        ? cp.rawInput
+                        : _lastTunnelUrl!,
+                    isTunnel: _isTunnel,
+                    ready: cp.hasToken,
+                  ),
+                  const SizedBox(height: AppSpacing.lg),
+                ],
 
                 GlassCard(
                   padding: const EdgeInsets.all(AppSpacing.xl),
@@ -285,11 +296,20 @@ class _ConnectScreenState extends State<ConnectScreen> {
                 ],
 
                 const SizedBox(height: AppSpacing.xxl),
-                Text(
-                  'by rmux · Strawberry Manager',
-                  style: TextStyle(
-                    color: Bk.textDim.withOpacity(0.7),
-                    fontSize: 11, letterSpacing: 0.5),
+                Text.rich(
+                  TextSpan(
+                    style: TextStyle(
+                      color: Bk.textDim.withOpacity(0.7),
+                      fontSize: 11, letterSpacing: 0.5),
+                    children: const [
+                      TextSpan(text: 'by '),
+                      TextSpan(text: 'rmux',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                      TextSpan(text: '  ·  reworked by '),
+                      TextSpan(text: 'KolliasG7',
+                        style: TextStyle(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
               ]),
@@ -422,42 +442,126 @@ class _ConnectScreenState extends State<ConnectScreen> {
 
 // ── Widgets ────────────────────────────────────────────────────────────────
 
-class _HeroLogo extends StatelessWidget {
+/// Centered wordmark used as the top-of-screen identity.
+class _HeroTitle extends StatelessWidget {
+  const _HeroTitle();
+
   @override
   Widget build(BuildContext context) {
+    return const Column(children: [
+      Text(
+        'Strawberry Manager',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Bk.textPri, fontSize: 26,
+          fontWeight: FontWeight.w800, letterSpacing: -0.4),
+      ),
+      SizedBox(height: 2),
+      Text(
+        'PlayStation 4 · Linux Control',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Bk.textSec, fontSize: 12, letterSpacing: 0.3),
+      ),
+    ]);
+  }
+}
+
+/// Info card shown above the connect form when the user has a previous
+/// session on record. Gives the screen a purposeful top-half.
+class _StatusPanel extends StatelessWidget {
+  const _StatusPanel({
+    required this.lastHost,
+    required this.isTunnel,
+    required this.ready,
+  });
+
+  final String lastHost;
+  final bool isTunnel;
+  final bool ready;
+
+  @override
+  Widget build(BuildContext context) {
+    final stateColor = ready ? Bk.success : Bk.textSec;
+    final stateLabel = ready ? 'Ready' : 'Idle';
+
     return GlassCard(
       style: GlassStyle.raised,
-      padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xl, vertical: AppSpacing.xxl),
-      child: Column(children: [
-        Container(
-          width: 62, height: 62,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Bk.accent.withOpacity(0.5), Bk.accent.withOpacity(0.1)],
+      padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const StatLabel('STATUS'),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: stateColor.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(AppRadii.pill),
+                border: Border.all(
+                    color: stateColor.withOpacity(0.32), width: 1),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 6, height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: stateColor,
+                    boxShadow: ready ? [
+                      BoxShadow(
+                        color: stateColor.withOpacity(0.6),
+                        blurRadius: 6,
+                      ),
+                    ] : null,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(stateLabel,
+                  style: TextStyle(
+                    color: stateColor,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  )),
+              ]),
             ),
-            border: Border.all(color: Bk.glassBorderHi, width: 1),
-          ),
-          child: const Icon(Icons.videogame_asset_outlined,
-            color: Bk.textPri, size: 28),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        const Text(
-          'Strawberry Manager',
-          style: TextStyle(
-            color: Bk.textPri, fontSize: 26,
-            fontWeight: FontWeight.w800, letterSpacing: -0.4),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'PlayStation 4 · Linux Control',
-          style: TextStyle(
-            color: Bk.textSec, fontSize: 13, letterSpacing: 0.2),
-        ),
-      ]),
+          ]),
+          const SizedBox(height: AppSpacing.md),
+          const Text('LAST SESSION',
+            style: TextStyle(
+              color: Bk.textDim, fontSize: 10,
+              letterSpacing: 1.2, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 2),
+          Text(lastHost,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: T.mono.copyWith(
+              color: Bk.textPri,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+            )),
+          const SizedBox(height: 2),
+          Row(children: [
+            Icon(
+              isTunnel ? Icons.cloud_outlined : Icons.wifi_outlined,
+              color: Bk.textSec, size: 12),
+            const SizedBox(width: 4),
+            Text(isTunnel ? 'Tunnel' : 'Local',
+              style: const TextStyle(
+                color: Bk.textSec, fontSize: 12,
+                fontWeight: FontWeight.w600)),
+            const Text('  ·  ',
+              style: TextStyle(color: Bk.textDim, fontSize: 12)),
+            Text(ready ? 'Token saved' : 'Tap Connect to sign in',
+              style: const TextStyle(
+                color: Bk.textSec, fontSize: 12)),
+          ]),
+        ],
+      ),
     );
   }
 }
