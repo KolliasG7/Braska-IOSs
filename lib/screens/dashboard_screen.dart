@@ -152,43 +152,45 @@ class _Nav extends StatelessWidget {
                     borderRadius: BorderRadius.circular(18),
                   ) : null,
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Badge(
-                      isLabelVisible: tab.badge && hasCpuAlert,
-                      backgroundColor: Bk.white,
-                      smallSize: 6,
-                      child: AnimatedSwitcher(
-                        duration: Duration(milliseconds: iconAnimMs),
-                        switchInCurve: Curves.easeOutBack,
-                        switchOutCurve: Curves.easeInCubic,
-                        transitionBuilder: (child, animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: ScaleTransition(
-                              scale: Tween<double>(begin: 0.86, end: 1).animate(animation),
-                              child: SlideTransition(
-                                position: Tween<Offset>(
-                                  begin: const Offset(0, 0.12),
-                                  end: Offset.zero,
-                                ).animate(animation),
-                                child: child,
+                    Builder(
+                      builder: (context) => Badge(
+                        isLabelVisible: tab.badge && hasCpuAlert,
+                        backgroundColor: Bk.white,
+                        smallSize: 6,
+                        child: AnimatedSwitcher(
+                          duration: Duration(milliseconds: iconAnimMs),
+                          switchInCurve: Curves.easeOutBack,
+                          switchOutCurve: Curves.easeInCubic,
+                          transitionBuilder: (child, animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: ScaleTransition(
+                                scale: Tween<double>(begin: 0.86, end: 1).animate(animation),
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, 0.12),
+                                    end: Offset.zero,
+                                  ).animate(animation),
+                                  child: child,
+                                ),
                               ),
+                            );
+                          },
+                          child: TweenAnimationBuilder<double>(
+                            key: ValueKey('icon-$i-$sel'),
+                            duration: Duration(milliseconds: reduceMotion ? 1 : 190),
+                            curve: Curves.easeOutCubic,
+                            tween: Tween<double>(
+                              begin: sel ? 0.9 : 1.08,
+                              end: sel ? 1.08 : 1,
                             ),
-                          );
-                        },
-                        child: TweenAnimationBuilder<double>(
-                          key: ValueKey('icon-$i-$sel'),
-                          duration: Duration(milliseconds: reduceMotion ? 1 : 190),
-                          curve: Curves.easeOutCubic,
-                          tween: Tween<double>(
-                            begin: sel ? 0.9 : 1.08,
-                            end: sel ? 1.08 : 1,
-                          ),
-                          builder: (_, scale, __) => Transform.scale(
-                            scale: scale,
-                            child: Icon(
-                              tab.icon,
-                              color: col,
-                              size: sel ? 19 : 17,
+                            builder: (_, scale, __) => Transform.scale(
+                              scale: scale,
+                              child: Icon(
+                                tab.icon,
+                                color: col,
+                                size: sel ? 19 : 17,
+                              ),
                             ),
                           ),
                         ),
@@ -394,11 +396,10 @@ class _ControlTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (api == null) return const _Wait();
-    final cards = <Widget>[
-      if (frame?.fan != null)
-        FanControlCard(api: api, currentThreshold: frame!.fan!.thresholdC),
-      LedPanelCard(api: api),
-    ];
+    List<Widget> cards = [];
+    if (frame?.fan != null)
+      cards.add(FanControlCard(api: api, currentThreshold: frame!.fan!.thresholdC));
+    cards.add(LedPanelCard(api: api));
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 120),
       child: Column(children: [
