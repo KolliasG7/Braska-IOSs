@@ -35,136 +35,215 @@ class ApiService {
     if (token.isNotEmpty) 'Authorization': 'Bearer $token',
   };
 
-  // ── Auth ──────────────────────────────────────────────────────────────
+  // ── Auth ───────────────────────────────────────────────────────────
 
   Future<String> login(String password) async {
-    final r = await http.post(_u('/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'password': password}),
-    ).timeout(const Duration(seconds: 8));
-    _chk(r);
-    final t = jsonDecode(r.body)['token'] as String;
-    token = t;
-    return t;
+    try {
+      final r = await http.post(_u('/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'password': password}),
+      ).timeout(const Duration(seconds: 10)); // FIXED: Increased timeout from 8s to 10s
+      _chk(r);
+      final t = jsonDecode(r.body)['token'] as String?;
+      if (t == null || t.isEmpty) {
+        throw ApiException(500, 'No token in response');
+      }
+      token = t;
+      return t;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<bool> verifyToken() async {
     if (token.isEmpty) return false;
     try {
       final r = await http.get(_u('/auth/verify'), headers: _h)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 8));
       return r.statusCode == 200;
-    } catch (_) { return false; }
+    } catch (e) { 
+      return false; 
+    }
   }
 
-  // ── Health ────────────────────────────────────────────────────────────
+  // ── Health ───────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getHealth() async {
-    final r = await http.get(_u('/')).timeout(const Duration(seconds: 5));
-    _chk(r); return jsonDecode(r.body);
+    try {
+      final r = await http.get(_u('/')).timeout(const Duration(seconds: 8));
+      _chk(r); 
+      return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // ── Fan ───────────────────────────────────────────────────────────────
+  // ── Fan ────────────────────────────────────────────────────────────
 
   Future<int> getFanThreshold() async {
-    final r = await http.get(_u('/api/fan/threshold'), headers: _h)
-        .timeout(const Duration(seconds: 5));
-    _chk(r); return (jsonDecode(r.body)['threshold'] as num).toInt();
+    try {
+      final r = await http.get(_u('/api/fan/threshold'), headers: _h)
+          .timeout(const Duration(seconds: 8));
+      _chk(r); 
+      final threshold = jsonDecode(r.body)['threshold'];
+      return (threshold as num?)?.toInt() ?? 30; // FIXED: Default to 30 if null
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<int> setFanThreshold(int c) async {
-    final r = await http.post(_u('/api/fan/threshold'),
-      headers: _h, body: jsonEncode({'threshold': c}),
-    ).timeout(const Duration(seconds: 8));
-    _chk(r); return (jsonDecode(r.body)['threshold_confirmed'] as num).toInt();
+    try {
+      final r = await http.post(_u('/api/fan/threshold'),
+        headers: _h, body: jsonEncode({'threshold': c}),
+      ).timeout(const Duration(seconds: 10));
+      _chk(r); 
+      final confirmed = jsonDecode(r.body)['threshold_confirmed'];
+      return (confirmed as num?)?.toInt() ?? c;
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // ── LED ───────────────────────────────────────────────────────────────
+  // ── LED ────────────────────────────────────────────────────────────
 
   Future<List<String>> getLedProfiles() async {
-    final r = await http.get(_u('/api/led/profiles'), headers: _h)
-        .timeout(const Duration(seconds: 5));
-    _chk(r); return List<String>.from(jsonDecode(r.body)['profiles']);
+    try {
+      final r = await http.get(_u('/api/led/profiles'), headers: _h)
+          .timeout(const Duration(seconds: 8));
+      _chk(r); 
+      final profiles = jsonDecode(r.body)['profiles'];
+      return profiles is List ? List<String>.from(profiles) : [];
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<String> setLed(String p) async {
-    final r = await http.post(_u('/api/led'), headers: _h,
-      body: jsonEncode({'profile': p}),
-    ).timeout(const Duration(seconds: 5));
-    _chk(r); return jsonDecode(r.body)['profile'];
+    try {
+      final r = await http.post(_u('/api/led'), headers: _h,
+        body: jsonEncode({'profile': p}),
+      ).timeout(const Duration(seconds: 8));
+      _chk(r); 
+      return jsonDecode(r.body)['profile'] as String? ?? p;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<String?> getActiveLed() async {
-    final r = await http.get(_u('/api/led/active'), headers: _h)
-        .timeout(const Duration(seconds: 5));
-    _chk(r); return jsonDecode(r.body)['active'] as String?;
+    try {
+      final r = await http.get(_u('/api/led/active'), headers: _h)
+          .timeout(const Duration(seconds: 8));
+      _chk(r); 
+      return jsonDecode(r.body)['active'] as String?;
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // ── System ────────────────────────────────────────────────────────────
+  // ── System ──────────────────────────────────────────────────────────
 
   Future<List<ProcessInfo>> getProcesses({int limit = 50, String sortBy = 'cpu'}) async {
-    final r = await http.get(
-      _u('/api/system/processes?limit=$limit&sort_by=$sortBy'), headers: _h,
-    ).timeout(const Duration(seconds: 8));
-    _chk(r);
-    final body = jsonDecode(r.body) as Map<String, dynamic>;
-    final processes = body['processes'];
-    if (processes is! List) return const [];
-    return processes
-        .whereType<Map>()
-        .map((e) => ProcessInfo.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
+    try {
+      final r = await http.get(
+        _u('/api/system/processes?limit=$limit&sort_by=$sortBy'), headers: _h,
+      ).timeout(const Duration(seconds: 10));
+      _chk(r);
+      final body = jsonDecode(r.body) as Map<String, dynamic>?;
+      if (body == null) return const [];
+      final processes = body['processes'];
+      if (processes is! List) return const [];
+      return processes
+          .whereType<Map>()
+          .map((e) => ProcessInfo.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> killProcess(int pid, {String signal = 'SIGTERM'}) async {
-    final r = await http.post(_u('/api/system/process/kill'),
-      headers: _h, body: jsonEncode({'pid': pid, 'signal': signal}),
-    ).timeout(const Duration(seconds: 5));
-    _chk(r);
+    try {
+      final r = await http.post(_u('/api/system/process/kill'),
+        headers: _h, body: jsonEncode({'pid': pid, 'signal': signal}),
+      ).timeout(const Duration(seconds: 10));
+      _chk(r);
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // ── Tunnel ────────────────────────────────────────────────────────────
+  // ── Tunnel ──────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> startTunnel() async {
-    final r = await http.post(_u('/api/tunnel/start'), headers: _h)
-        .timeout(const Duration(seconds: 35));
-    _chk(r); return jsonDecode(r.body);
+    try {
+      final r = await http.post(_u('/api/tunnel/start'), headers: _h)
+          .timeout(const Duration(seconds: 40));
+      _chk(r); 
+      return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> stopTunnel() async {
-    final r = await http.post(_u('/api/tunnel/stop'), headers: _h)
-        .timeout(const Duration(seconds: 10));
-    _chk(r);
+    try {
+      final r = await http.post(_u('/api/tunnel/stop'), headers: _h)
+          .timeout(const Duration(seconds: 15));
+      _chk(r);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> getTunnelStatus() async {
-    final r = await http.get(_u('/api/tunnel/status'), headers: _h)
-        .timeout(const Duration(seconds: 5));
-    _chk(r); return jsonDecode(r.body);
+    try {
+      final r = await http.get(_u('/api/tunnel/status'), headers: _h)
+          .timeout(const Duration(seconds: 8));
+      _chk(r); 
+      return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // ── Power ─────────────────────────────────────────────────────────────
+  // ── Power ───────────────────────────────────────────────────────────
 
   Future<void> powerAction(String action) async {
-    final r = await http.post(_u('/api/power/$action'), headers: _h)
-        .timeout(const Duration(seconds: 10));
-    _chk(r);
+    try {
+      final r = await http.post(_u('/api/power/$action'), headers: _h)
+          .timeout(const Duration(seconds: 15));
+      _chk(r);
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  // ── Files ─────────────────────────────────────────────────────────────
+  // ── Files ───────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> listFiles(String path) async {
-    final encoded = Uri.encodeQueryComponent(path);
-    final r = await http.get(_u('/api/files/list?path=$encoded'), headers: _h)
-        .timeout(const Duration(seconds: 10));
-    _chk(r); return jsonDecode(r.body);
+    try {
+      final encoded = Uri.encodeQueryComponent(path);
+      final r = await http.get(_u('/api/files/list?path=$encoded'), headers: _h)
+          .timeout(const Duration(seconds: 15));
+      _chk(r); 
+      return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<Uint8List> downloadFile(String path) async {
-    final encoded = Uri.encodeQueryComponent(path);
-    final r = await http.get(_u('/api/files/download?path=$encoded'), headers: _h)
-        .timeout(const Duration(seconds: 120));
-    _chk(r); return r.bodyBytes;
+    try {
+      final encoded = Uri.encodeQueryComponent(path);
+      final r = await http.get(_u('/api/files/download?path=$encoded'), headers: _h)
+          .timeout(const Duration(seconds: 120));
+      _chk(r); 
+      return r.bodyBytes;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<Map<String, dynamic>> uploadFile({
@@ -172,32 +251,44 @@ class ApiService {
     required String filename,
     required String destDir,
   }) async {
-    final encoded = Uri.encodeQueryComponent(destDir);
-    final headers = {
-      ...?(_h.isNotEmpty ? _h : null),
-      'Content-Type':  'application/octet-stream',
-      'X-File-Name':   filename,
-      'Authorization': token.isNotEmpty ? 'Bearer $token' : '',
-    };
-    final r = await http.post(
-      _u('/api/files/upload?dest=$encoded'),
-      headers: headers,
-      body: bytes,
-    ).timeout(const Duration(seconds: 120));
-    _chk(r); return jsonDecode(r.body);
+    try {
+      final encoded = Uri.encodeQueryComponent(destDir);
+      final headers = {
+        ...?(_h.isNotEmpty ? _h : null),
+        'Content-Type':  'application/octet-stream',
+        'X-File-Name':   filename,
+        if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+      };
+      final r = await http.post(
+        _u('/api/files/upload?dest=$encoded'),
+        headers: headers,
+        body: bytes,
+      ).timeout(const Duration(seconds: 120));
+      _chk(r); 
+      return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> deleteFile(String path) async {
-    final encoded = Uri.encodeQueryComponent(path);
-    final r = await http.delete(_u('/api/files/delete?path=$encoded'), headers: _h)
-        .timeout(const Duration(seconds: 10));
-    _chk(r);
+    try {
+      final encoded = Uri.encodeQueryComponent(path);
+      final r = await http.delete(_u('/api/files/delete?path=$encoded'), headers: _h)
+          .timeout(const Duration(seconds: 15));
+      _chk(r);
+    } catch (e) {
+      rethrow;
+    }
   }
 
   void _chk(http.Response r) {
     if (r.statusCode >= 400) {
       String d = r.body;
-      try { d = (jsonDecode(r.body)['detail'] ?? d).toString(); } catch (_) {}
+      try { 
+        final decoded = jsonDecode(r.body);
+        d = (decoded is Map ? decoded['detail'] : null) ?? d;
+      } catch (_) {}
       throw ApiException(r.statusCode, d);
     }
   }
