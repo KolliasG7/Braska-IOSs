@@ -1,4 +1,4 @@
-// lib/providers/connection_provider.dart - FIXED WITH ALL IMPORTS
+// lib/providers/connection_provider.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -13,44 +13,37 @@ enum ConnState { idle, connecting, connected, error, needsAuth }
 class ConnectionProvider extends ChangeNotifier {
   ConnectionProvider();
 
-  // Settings
   String _rawInput = '';
   bool   _isTunnel = false;
   String get rawInput  => _rawInput;
   bool   get isTunnel  => _isTunnel;
 
-  // Auth
   String _token = '';
   String get token => _token;
   bool   get hasToken => _token.isNotEmpty;
 
-  // Connection state
   ConnState _connState = ConnState.idle;
   String?   _error;
   ConnState get connState   => _connState;
   String?   get error       => _error;
   bool      get isConnected => _connState == ConnState.connected;
 
-  // Services
   ApiService? _api;
   WsService?  _ws;
   ApiService? get api => _api;
   WsService?  get ws  => _ws;
 
-  // Live telemetry
   TelemetryFrame? _frame;
   TelemetryFrame? get frame => _frame;
 
   StreamSubscription? _wsSub;
   StreamSubscription? _wsStateSub;
 
-  // History
   final List<double> cpuHistory  = [];
   final List<double> ramHistory  = [];
   final List<double> tempHistory = [];
   final List<double> fanHistory  = [];
 
-  // Prefs
   bool _showCpuGraph      = true;
   bool _showRamGraph      = true;
   bool _showThermalGraph  = true;
@@ -74,8 +67,6 @@ class ConnectionProvider extends ChangeNotifier {
 
   bool _critNotifSent = false;
   String? _lastNotifBody;
-
-  // ── Persist ──────────────────────────────────────────────────────────
 
   Future<void> loadSaved() async {
     try {
@@ -120,22 +111,16 @@ class ConnectionProvider extends ChangeNotifier {
     }
   }
 
-  // ── Connect ──────────────────────────────────────────────────────────
-
   Future<void> connect(String input) async {
     bool authRequired = false;
-
     _rawInput  = input.trim();
     _isTunnel  = _detectTunnel(_rawInput);
     _error     = null;
     _connState = ConnState.connecting;
     notifyListeners();
-
     _teardown();
-
     final base = _effectiveBase(_rawInput);
     _api = ApiService(base, token: _token);
-
     try {
       final health = await _api!.getHealth().timeout(const Duration(seconds: 10));
       if (health['status'] != 'ok' && health['status'] != 'degraded') {
@@ -148,20 +133,17 @@ class ConnectionProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     if (!authRequired) {
       await _save();
       _connectWs(base);
       return;
     }
-
     final tokenOk = await _api!.verifyToken();
     if (!tokenOk) {
       _connState = ConnState.needsAuth;
       notifyListeners();
       return;
     }
-
     await _save();
     _connectWs(base);
   }
@@ -170,7 +152,6 @@ class ConnectionProvider extends ChangeNotifier {
     if (_api == null) return;
     _error = null;
     notifyListeners();
-
     try {
       final t = await _api!.login(password).timeout(const Duration(seconds: 10));
       await _saveToken(t);
@@ -179,7 +160,6 @@ class ConnectionProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-
     await _save();
     _connectWs(_api!.baseUrl);
   }
@@ -192,9 +172,7 @@ class ConnectionProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ConnectionProvider] Error loading LED profiles: $e');
     }
-
     _ws = WsService(base, token: _token);
-
     _wsStateSub = _ws!.state.listen((s) {
       if (s == WsState.connected && _connState != ConnState.connected) {
         _connState = ConnState.connected;
@@ -204,7 +182,6 @@ class ConnectionProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
-
     _wsSub = _ws!.stream.listen(_onFrame);
     _ws!.connect();
     notifyListeners();
@@ -213,21 +190,18 @@ class ConnectionProvider extends ChangeNotifier {
   void _onFrame(TelemetryFrame f) {
     _frame = f;
     _connState = ConnState.connected;
-
     if (f.cpu != null) { cpuHistory.add(f.cpu!.percent); if (cpuHistory.length > 50) cpuHistory.removeAt(0); }
     if (f.ram != null) { ramHistory.add(f.ram!.percent); if (ramHistory.length > 50) ramHistory.removeAt(0); }
     if (f.fan != null) {
       tempHistory.add(f.fan!.apuTempC); if (tempHistory.length > 50) tempHistory.removeAt(0);
       fanHistory.add(f.fan!.rpm.toDouble()); if (fanHistory.length > 50) fanHistory.removeAt(0);
     }
-
     final tunnelUrl = f.tunnel?.url;
     if (tunnelUrl != null && f.tunnel!.isRunning && _isTunnel) {
       if (_ws != null && _ws!.currentState != WsState.connected) {
         _ws!.updateUrl(tunnelUrl);
       }
     }
-
     _sendNotification(f);
     notifyListeners();
   }
@@ -236,19 +210,15 @@ class ConnectionProvider extends ChangeNotifier {
     final result = await _api!.startTunnel().timeout(const Duration(seconds: 35));
     final url = result['url'] as String?;
     if (url == null) throw Exception('No URL returned');
-
     _rawInput = url;
     _isTunnel = true;
     await _save();
-
     final newApi = ApiService(url, token: _token);
     final newWs  = WsService(url, token: _token);
-
     await Future.delayed(const Duration(seconds: 5));
     _teardown();
     _api = newApi;
     _ws  = newWs;
-
     _wsStateSub = _ws!.state.listen((s) {
       if (s == WsState.connected) { _connState = ConnState.connected; notifyListeners(); }
     });
@@ -260,6 +230,7 @@ class ConnectionProvider extends ChangeNotifier {
 
   Future<void> stopTunnel() async => _api?.stopTunnel();
 
+  /// Disconnect but keep saved address (can reconnect later).
   void disconnect() {
     _teardown();
     _connState = ConnState.idle;
@@ -268,6 +239,19 @@ class ConnectionProvider extends ChangeNotifier {
     NotificationService.cancelStatus();
   }
 
+  /// BUG FIX: Disconnect AND clear saved address so _Root won't auto-reconnect.
+  Future<void> disconnectAndForget() async {
+    _teardown();
+    _rawInput  = '';
+    _isTunnel  = false;
+    _connState = ConnState.idle;
+    _frame     = null;
+    await _save();
+    notifyListeners();
+    NotificationService.cancelStatus();
+  }
+
+  /// Clear only the saved auth token (without disconnecting).
   Future<void> clearToken() async {
     await _saveToken('');
     if (_api != null) _api!.token = '';
@@ -287,24 +271,20 @@ class ConnectionProvider extends ChangeNotifier {
     final rpm  = f.fan?.rpm        ?? 0;
     final ram  = f.ram?.percent    ?? 0;
     final net  = f.primaryNet;
-    
     String netStr = '';
     if (net != null) {
       final txMbps = (net.bytesSentS / 1024 / 1024).toStringAsFixed(1);
       final rxMbps = (net.bytesRecvS / 1024 / 1024).toStringAsFixed(1);
       netStr = '  ▼${rxMbps}M/s ▲${txMbps}M/s';
     }
-    
     final body = 'CPU ${cpu.toStringAsFixed(0)}% • RAM ${ram.toStringAsFixed(0)}%\n'
                 '${temp.toStringAsFixed(0)}°C • ${rpm == 0 ? "Fan off" : "$rpm RPM"} • Up ${f.uptimeFormatted}\n'
                 'Net ${net?.iface ?? "lo"}$netStr';
-    
     if (body != _lastNotifBody) {
       _lastNotifBody = body;
       NotificationService.showStatus(title: 'PlayStation4', body: body);
       NotificationService.storeLastTemp(temp);
     }
-    
     if (temp >= 90 && !_critNotifSent) {
       _critNotifSent = true;
       NotificationService.showAlert(title: '⚠️ PS4 Temp Critical',
