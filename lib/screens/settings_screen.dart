@@ -295,19 +295,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? null : _doDisconnect,
                         expand: true,
                       ),
-                      const SizedBox(height: AppSpacing.md),
-                      AppButton(
-                        label: cp.hasToken
-                            ? 'Clear saved token'
-                            : 'No token saved',
-                        icon: Icons.key_off_outlined,
-                        variant: ButtonVariant.glass,
-                        loading: _clearingToken,
-                        onPressed: (cp.hasToken && !_disconnecting && !_clearingToken)
-                            ? _doClearToken
-                            : null,
-                        expand: true,
-                      ),
+                      if (cp.hasToken) ...[
+                        const SizedBox(height: AppSpacing.md),
+                        AppButton(
+                          label: 'Clear saved token',
+                          icon: Icons.key_off_outlined,
+                          variant: ButtonVariant.glass,
+                          loading: _clearingToken,
+                          onPressed: (!_disconnecting && !_clearingToken)
+                              ? _doClearToken
+                              : null,
+                          expand: true,
+                        ),
+                      ],
                     ]),
                   ),
                 ],

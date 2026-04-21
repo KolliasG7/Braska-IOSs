@@ -94,19 +94,22 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   Expanded(
                     child: AnimatedSwitcher(
-                      duration: reduceMotion ? Duration.zero : AppDurations.med,
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
+                      duration: reduceMotion ? Duration.zero : AppDurations.slow,
+                      switchInCurve: AppCurves.enter,
+                      switchOutCurve: AppCurves.exit,
                       transitionBuilder: (child, animation) {
                         final isForward = _tab >= _prevTab;
-                        final beginX = isForward ? 0.04 : -0.04;
+                        final beginX = isForward ? 0.08 : -0.08;
                         return FadeTransition(
                           opacity: animation,
                           child: SlideTransition(
                             position: Tween<Offset>(
                               begin: Offset(beginX, 0),
                               end: Offset.zero,
-                            ).animate(animation),
+                            ).animate(CurvedAnimation(
+                              parent: animation,
+                              curve: AppCurves.enter,
+                            )),
                             child: child,
                           ),
                         );

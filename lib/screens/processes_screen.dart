@@ -202,8 +202,8 @@ class _ProcessesScreenState extends State<ProcessesScreen>
                 backgroundColor: Bk.surface1,
                 child: AnimatedSwitcher(
                   duration: Duration(milliseconds: reduceMotion ? 1 : 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
+                  switchInCurve: AppCurves.enter,
+                  switchOutCurve: AppCurves.exit,
                   child: _loading
                       ? const _ProcSkeleton(key: ValueKey('loading'))
                       : _err != null

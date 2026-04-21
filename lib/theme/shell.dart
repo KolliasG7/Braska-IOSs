@@ -152,13 +152,13 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration = reduceMotion ? Duration.zero : AppDurations.fast;
+    final duration = reduceMotion ? Duration.zero : AppDurations.med;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: duration,
-        curve: Curves.easeOutCubic,
+        curve: AppCurves.emphasized,
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         decoration: BoxDecoration(
           color: selected ? Bk.accent.withOpacity(0.20) : Colors.transparent,

@@ -179,8 +179,8 @@ class _FilesScreenState extends State<FilesScreen> {
             backgroundColor: Bk.surface1,
             child: AnimatedSwitcher(
               duration: reduceMotion ? Duration.zero : AppDurations.fast,
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
+              switchInCurve: AppCurves.enter,
+              switchOutCurve: AppCurves.exit,
               child: _loading
                   ? const _FileSkeleton(key: ValueKey('loading'))
                   : _err != null

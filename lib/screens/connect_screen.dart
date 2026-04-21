@@ -453,7 +453,7 @@ class _HeroLogo extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         const Text(
-          'PlayStation 4 · Linux control',
+          'PlayStation 4 · Linux Control',
           style: TextStyle(
             color: Bk.textSec, fontSize: 13, letterSpacing: 0.2),
         ),
@@ -469,29 +469,69 @@ class _ModeSegmented extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 42,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: Bk.glassSubtle,
-        borderRadius: BorderRadius.circular(AppRadii.md),
-        border: Border.all(color: Bk.glassBorder),
-      ),
-      child: Row(children: [
-        Expanded(child: _SegBtn(
-          icon: Icons.wifi_outlined,
-          label: 'Local',
-          selected: !isTunnel,
-          onTap: () => onChanged(false),
-        )),
-        Expanded(child: _SegBtn(
-          icon: Icons.cloud_outlined,
-          label: 'Tunnel',
-          selected: isTunnel,
-          onTap: () => onChanged(true),
-        )),
-      ]),
-    );
+    const pad = 4.0;
+    const height = 48.0;
+    final reduceMotion = context.watch<ConnectionProvider>().reduceMotion;
+
+    return LayoutBuilder(builder: (ctx, box) {
+      final segW = (box.maxWidth - pad * 2) / 2;
+
+      return Container(
+        height: height,
+        padding: const EdgeInsets.all(pad),
+        decoration: BoxDecoration(
+          color: Bk.glassSubtle,
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          border: Border.all(color: Bk.glassBorder),
+        ),
+        child: Stack(children: [
+          // Sliding glass thumb. Uses an eased curve and the accent for a
+          // soft glow so it feels like the pill physically moves.
+          AnimatedPositioned(
+            duration: reduceMotion ? Duration.zero : AppDurations.slow,
+            curve: AppCurves.emphasized,
+            left: isTunnel ? segW : 0,
+            top: 0,
+            bottom: 0,
+            width: segW,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Bk.glassRaised,
+                borderRadius: BorderRadius.circular(AppRadii.pill - pad),
+                border: Border.all(color: Bk.glassBorderHi),
+                boxShadow: [
+                  BoxShadow(
+                    color: Bk.accent.withOpacity(0.18),
+                    blurRadius: 18,
+                    spreadRadius: -2,
+                    offset: const Offset(0, 4),
+                  ),
+                  const BoxShadow(
+                    color: Color(0x33000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Row(children: [
+            Expanded(child: _SegBtn(
+              icon: Icons.wifi_outlined,
+              label: 'Local',
+              selected: !isTunnel,
+              onTap: () => onChanged(false),
+            )),
+            Expanded(child: _SegBtn(
+              icon: Icons.cloud_outlined,
+              label: 'Tunnel',
+              selected: isTunnel,
+              onTap: () => onChanged(true),
+            )),
+          ]),
+        ]),
+      );
+    });
   }
 }
 
@@ -512,26 +552,31 @@ class _SegBtn extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: AppDurations.fast,
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          color: selected ? Bk.glassRaised : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadii.sm),
-          border: selected
-              ? Border.all(color: Bk.glassBorderHi)
-              : null,
-        ),
+      child: SizedBox(
+        height: double.infinity,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-              color: selected ? Bk.textPri : Bk.textDim, size: 16),
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: selected ? 1 : 0),
+              duration: AppDurations.med,
+              curve: AppCurves.standard,
+              builder: (_, v, __) => Icon(icon,
+                size: 16,
+                color: Color.lerp(Bk.textDim, Bk.textPri, v)),
+            ),
             const SizedBox(width: 6),
-            Text(label, style: TextStyle(
-              color: selected ? Bk.textPri : Bk.textDim,
-              fontSize: 13,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+            AnimatedDefaultTextStyle(
+              duration: AppDurations.med,
+              curve: AppCurves.standard,
+              style: TextStyle(
+                color: selected ? Bk.textPri : Bk.textDim,
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: 0.2,
+              ),
+              child: Text(label),
+            ),
           ],
         ),
       ),

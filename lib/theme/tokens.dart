@@ -98,9 +98,28 @@ class AppRadii {
 
 class AppDurations {
   AppDurations._();
-  static const fast   = Duration(milliseconds: 180);
-  static const med    = Duration(milliseconds: 280);
-  static const slow   = Duration(milliseconds: 420);
+  static const fast   = Duration(milliseconds: 220);
+  static const med    = Duration(milliseconds: 340);
+  static const slow   = Duration(milliseconds: 520);
+  static const xslow  = Duration(milliseconds: 680);
+}
+
+/// Centralized motion curves. Using a slightly overshooting / strongly-eased
+/// curve for "emphasized" transitions gives the UI a buttery, confident feel.
+class AppCurves {
+  AppCurves._();
+
+  /// Smooth entrance with a soft settle; good for tab swaps, card reveals.
+  static const enter = Cubic(0.16, 1.0, 0.3, 1.0);
+
+  /// Quick exit that clears out of the way without a snap.
+  static const exit  = Cubic(0.4, 0.0, 0.2, 1.0);
+
+  /// Emphasized motion for selection indicators and pills.
+  static const emphasized = Cubic(0.2, 0.9, 0.1, 1.0);
+
+  /// Standard UI container sizing / color lerp.
+  static const standard = Cubic(0.25, 0.8, 0.25, 1.0);
 }
 
 // Legacy no-op settings objects referenced by a few places.

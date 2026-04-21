@@ -48,8 +48,8 @@ class _Root extends StatelessWidget {
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 500),
-      switchInCurve:  Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
+      switchInCurve:  AppCurves.enter,
+      switchOutCurve: AppCurves.exit,
       transitionBuilder: (child, anim) => FadeTransition(
         opacity: anim,
         child: SlideTransition(
