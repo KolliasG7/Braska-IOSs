@@ -191,9 +191,10 @@ class _FilesScreenState extends State<FilesScreen> {
           IconButton(
             icon: const Icon(Icons.upload_outlined, size: 20),
             onPressed: _upload,
-            tooltip: 'Upload to here'),
+            tooltip: 'Upload to current folder'),
           IconButton(
             icon: const Icon(Icons.refresh_outlined, size: 18),
+            tooltip: 'Refresh files',
             onPressed: () => _load(_path)),
         ],
         bottom: PreferredSize(
@@ -368,6 +369,7 @@ class _FileRow extends StatelessWidget {
             IconButton(
               icon: const Icon(Icons.download_outlined, size: 18, color: Bk.textDim),
               onPressed: onDownload,
+              tooltip: 'Download file',
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints()),
           const SizedBox(width: 4),
@@ -375,6 +377,7 @@ class _FileRow extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.delete_outline, size: 17, color: Bk.textDim),
             onPressed: onDelete,
+            tooltip: 'Delete item',
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints()),
         ]),

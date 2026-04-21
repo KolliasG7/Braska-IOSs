@@ -14,7 +14,7 @@ class ProcessesScreen extends StatefulWidget {
   @override State<ProcessesScreen> createState() => _ProcessesScreenState();
 }
 
-class _ProcessesScreenState extends State<ProcessesScreen> {
+class _ProcessesScreenState extends State<ProcessesScreen> with WidgetsBindingObserver {
   List<ProcessInfo> _procs = [];
   String _sort = 'cpu';
   bool _loading = true;
@@ -27,12 +27,38 @@ class _ProcessesScreenState extends State<ProcessesScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refresh();
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
+    _startPolling();
   }
 
   @override
-  void dispose() { _timer?.cancel(); super.dispose(); }
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPolling();
+    super.dispose();
+  }
+
+  void _startPolling() {
+    _timer ??= Timer.periodic(const Duration(seconds: 3), (_) => _refresh());
+  }
+
+  void _stopPolling() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startPolling();
+      _refresh();
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _stopPolling();
+    }
+  }
 
   Future<void> _refresh() async {
     try {
@@ -156,6 +182,7 @@ class _ProcessesScreenState extends State<ProcessesScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.refresh_outlined, size: 18),
+            tooltip: 'Refresh processes',
             onPressed: _refresh),
         ],
         bottom: PreferredSize(

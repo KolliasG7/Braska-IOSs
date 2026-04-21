@@ -112,7 +112,7 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
           IconButton(
             icon: const Icon(Icons.cleaning_services_outlined, size: 16),
             onPressed: () => setState(() { _lines.clear(); _partial = ''; }),
-            tooltip: 'Clear'),
+            tooltip: 'Clear terminal'),
         ],
       ),
       body: Column(children: [
@@ -180,12 +180,16 @@ class _TerminalScreenState extends State<TerminalScreen> with WidgetsBindingObse
               onSubmitted: _sendLine,
               textInputAction: TextInputAction.send,
             )),
-            GestureDetector(
-              onTap: () => _sendLine(_inputCtrl.text),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                child: Icon(Icons.send_rounded,
-                  color: _connected ? Bk.white : Bk.textDim, size: 18)),
+            Semantics(
+              label: 'Send command',
+              button: true,
+              child: GestureDetector(
+                onTap: () => _sendLine(_inputCtrl.text),
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(Icons.send_rounded,
+                    color: _connected ? Bk.white : Bk.textDim, size: 18)),
+              ),
             ),
           ]),
         ),

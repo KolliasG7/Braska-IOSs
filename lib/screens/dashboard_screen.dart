@@ -22,6 +22,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _tab = 0;
+  int _prevTab = 0;
 
   Widget _buildTabContent(TelemetryFrame? frame, ConnectionProvider cp) {
     return switch (_tab) {
@@ -58,11 +59,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
               switchInCurve: Curves.easeOutCubic,
               switchOutCurve: Curves.easeInCubic,
               transitionBuilder: (child, animation) {
+                final isForward = _tab >= _prevTab;
+                final beginX = isForward ? 0.05 : -0.05;
                 return FadeTransition(
                   opacity: animation,
                   child: SlideTransition(
                     position: Tween<Offset>(
-                      begin: const Offset(0.03, 0),
+                      begin: Offset(beginX, 0),
                       end: Offset.zero,
                     ).animate(animation),
                     child: child,
@@ -83,7 +86,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onTap:       (i) {
           if (i == _tab) return;
           HapticFeedback.selectionClick();
-          setState(() => _tab = i);
+          setState(() {
+            _prevTab = _tab;
+            _tab = i;
+          });
         },
         hasCpuAlert: cpu > 80,
       ),
@@ -260,8 +266,12 @@ class _TopBar extends StatelessWidget {
         const SizedBox(width: 12),
         GestureDetector(
           onTap: onSettings,
-          child: const Icon(Icons.settings_outlined,
-            color: Bk.textDim, size: 20)),
+          child: const Semantics(
+            label: 'Open settings',
+            button: true,
+            child: Icon(Icons.settings_outlined, color: Bk.textDim, size: 20),
+          ),
+        ),
       ]),
     );
   }
