@@ -112,6 +112,38 @@ class ApiService {
     return t;
   }
 
+  // ── Logs (journalctl tail) ──────────────────────────────────────────
+
+  /// Tails the strawberry-manager systemd unit's journal.
+  ///
+  /// [lines] is clamped server-side to 1..2000; we send whatever the user
+  /// picks and let the backend decide. [priority] is optional and, if
+  /// provided, must be a single digit "0".."7" (journald syslog levels) —
+  /// the backend 400s anything else.
+  ///
+  /// Returns the decoded envelope: `{ unit, lines: [..], count, priority }`.
+  /// Throws on network / HTTP failure so the UI can surface the reason.
+  Future<Map<String, dynamic>> fetchLogs({
+    int lines = 500,
+    String? priority,
+  }) async {
+    return _retry.execute(
+      () async {
+        final qp = <String, String>{'lines': '$lines'};
+        if (priority != null && priority.isNotEmpty) {
+          qp['priority'] = priority;
+        }
+        final uri = _u('/api/system/logs').replace(queryParameters: qp);
+        final r = await http.get(uri, headers: _h)
+            .timeout(const Duration(seconds: 15));
+        _chk(r);
+        final decoded = jsonDecode(r.body);
+        return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
   // ── Health ───────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getHealth() async {

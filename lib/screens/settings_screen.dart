@@ -11,6 +11,8 @@ import '../services/payload_history_service.dart';
 import '../services/payload_sender_service.dart';
 import '../services/error_formatter.dart';
 import '../theme.dart';
+import '../widgets/motion.dart';
+import 'logs_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -334,6 +336,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         variant: ButtonVariant.glass,
                         onPressed: (_disconnecting || _clearingToken)
                             ? null : _doChangePassword,
+                        expand: true,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                    _Section(
+                      icon: Icons.article_outlined,
+                      title: 'Diagnostics',
+                      content: AppButton(
+                        label: 'View daemon logs',
+                        icon: Icons.terminal_outlined,
+                        variant: ButtonVariant.glass,
+                        onPressed: (_disconnecting || _clearingToken)
+                            ? null
+                            : () {
+                                HapticFeedback.selectionClick();
+                                Navigator.of(context).push(
+                                  FadeThroughRoute(child: const LogsScreen()),
+                                );
+                              },
                         expand: true,
                       ),
                     ),
