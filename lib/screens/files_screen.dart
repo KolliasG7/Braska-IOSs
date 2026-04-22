@@ -18,11 +18,16 @@ class FilesScreen extends StatefulWidget {
 }
 
 class _FilesScreenState extends State<FilesScreen> {
-  String _path = '/';
+  // Backend's path allowlist (PR #1 security hardening) rejects '/', so
+  // starting there would surface 'Path not allowed.' on every fresh launch.
+  // /home is inside the allowlist and is what a PS4 user actually wants to
+  // see first.
+  static const String _defaultPath = '/home';
+  String _path = _defaultPath;
   List<Map<String, dynamic>> _items = [];
   bool _loading = true;
   String? _err;
-  final List<String> _history = ['/'];
+  final List<String> _history = [_defaultPath];
   DateTime? _lastUpdated;
   DateTime? _lastSuccess;
   // Guards against overlapping _load calls when the user pulls to refresh
@@ -30,7 +35,7 @@ class _FilesScreenState extends State<FilesScreen> {
   // in quick succession on a slow link.
   bool _loadInFlight = false;
 
-  @override void initState() { super.initState(); _load('/'); }
+  @override void initState() { super.initState(); _load(_defaultPath); }
 
   Future<void> _load(String path) async {
     if (_loadInFlight) return;
@@ -39,9 +44,25 @@ class _FilesScreenState extends State<FilesScreen> {
     try {
       final data = await widget.api.listFiles(path);
       if (!mounted) return;
+      // Backend returns {"error":"…","items":[]} (no 'path' field) when the
+      // requested path is outside the allowlist. Surface that as a normal
+      // error state rather than throwing a Null→String cast.
+      final serverErr = data['error'] as String?;
+      if (serverErr != null && serverErr.isNotEmpty) {
+        setState(() {
+          _err = serverErr;
+          _items = const [];
+          _loading = false;
+          _lastUpdated = DateTime.now();
+        });
+        return;
+      }
+      final itemsRaw = data['items'];
       setState(() {
-        _path = data['path'] as String;
-        _items = List<Map<String, dynamic>>.from(data['items'] as List);
+        _path = (data['path'] as String?) ?? path;
+        _items = itemsRaw is List
+            ? List<Map<String, dynamic>>.from(itemsRaw)
+            : const [];
         _loading = false;
         _lastUpdated = DateTime.now();
         _lastSuccess = _lastUpdated;
@@ -397,7 +418,7 @@ class _FileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDir = item['is_dir'] as bool? ?? false;
-    final name = item['name'] as String;
+    final name = (item['name'] as String?) ?? '(unnamed)';
     final size = item['size'] as int? ?? 0;
     final mode = item['mode'] as String? ?? '';
     final errMsg = item['error'] as String?;

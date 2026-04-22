@@ -33,8 +33,18 @@ class WsService {
 
   void updateUrl(String url) {
     _baseUrl = url;
+    // disconnect() already cancels any pending _reconnectTimer, so scheduling
+    // a new one here uses the same cancellable field. Without this, repeated
+    // updateUrl calls (e.g. connection_provider's per-frame state fixups on a
+    // flaky link) would stack non-cancellable Future.delayeds, each firing
+    // connect() → disconnect() → _tryConnect() and briefly dropping the live
+    // connection every ~300 ms.
     disconnect();
-    Future.delayed(const Duration(milliseconds: 300), connect);
+    if (_disposed) return;
+    _reconnectTimer = Timer(const Duration(milliseconds: 300), () {
+      _reconnectTimer = null;
+      connect();
+    });
   }
 
   void connect() {
