@@ -345,19 +345,26 @@ class ApiService {
   }) async {
     return _retry.execute(
       () async {
-        final encoded = Uri.encodeQueryComponent(destDir);
+        // The daemon's upload handler expects the full target path
+        // (parent dir + filename) as `?path=` and ignores the filename
+        // header entirely. When we previously sent `?dest=<destDir>` with
+        // the filename in `X-File-Name`, the server treated the path as
+        // missing, wrote a 400 response, and closed the socket before the
+        // request body was drained — which surfaces on the client as
+        // "Connection reset by peer" instead of a clean 400.
+        final sep = destDir.endsWith('/') ? '' : '/';
+        final fullPath = '$destDir$sep$filename';
+        final encoded = Uri.encodeQueryComponent(fullPath);
         final headers = {
-          ...?(_h.isNotEmpty ? _h : null),
-          'Content-Type':  'application/octet-stream',
-          'X-File-Name':   filename,
           if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+          'Content-Type': 'application/octet-stream',
         };
         final r = await http.post(
-          _u('/api/files/upload?dest=$encoded'),
+          _u('/api/files/upload?path=$encoded'),
           headers: headers,
           body: bytes,
         ).timeout(const Duration(seconds: 120));
-        _chk(r); 
+        _chk(r);
         return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
       },
       retryIf: RetryConditions.isConnectionError,
