@@ -45,7 +45,7 @@ ThemeData buildTheme() {
     dividerTheme: const DividerThemeData(
       color: Bk.glassBorder, thickness: 1, space: 1,
     ),
-    dialogTheme: DialogTheme(
+    dialogTheme: DialogThemeData(
       backgroundColor: Bk.surface1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadii.lg),
