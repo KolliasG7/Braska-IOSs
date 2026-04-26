@@ -108,7 +108,7 @@ class _PowerControlsCardState extends State<PowerControlsCard> {
           if (_err != null) ...[
             const SizedBox(height: 10),
             Text('✗ $_err',
-              style: const TextStyle(color: Bk.textSec, fontSize: 11)),
+              style: const TextStyle(color: Bk.danger, fontSize: 11)),
           ],
         ],
       ),

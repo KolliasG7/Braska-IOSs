@@ -29,7 +29,7 @@ class FanTileService : TileService() {
         
         var fan = prefs.getLong("flutter.ps4_tile_fan_val", 70L).toInt()
         fan += 5
-        if (fan > 85) fan = 45
+        if (fan > 80) fan = -10
         prefs.edit().putLong("flutter.ps4_tile_fan_val", fan.toLong()).apply()
         
         updateTileUI()

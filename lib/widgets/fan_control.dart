@@ -12,7 +12,7 @@ class FanControlCard extends StatefulWidget {
 }
 
 class _FanControlCardState extends State<FanControlCard> {
-  static const _min = 10.0, _max = 85.0;
+  static const _min = -128, _max = 85.0;
   late double _val;
   double? _lastCommittedValue;
   bool _writing = false;
@@ -73,8 +73,8 @@ class _FanControlCardState extends State<FanControlCard> {
   @override
   Widget build(BuildContext context) {
     final displayVal = _val.round();
-    final tColor = displayVal >= 80 ? Bk.red
-                 : displayVal >= 70 ? Bk.amber : Bk.cyan;
+    final tColor = displayVal >= 70 ? Bk.red
+                 : displayVal >= 55 ? Bk.amber : Bk.cyan;
 
     return GlassCard(
       tint: tColor.withOpacity(0.06),
@@ -175,8 +175,8 @@ class _FanControlCardState extends State<FanControlCard> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
-              _Tick('10°'), _Tick('30°'), _Tick('45°'),
-              _Tick('60°'), _Tick('75°'), _Tick('85°'),
+              _Tick('-20°'), _Tick('-10°'), _Tick('0°'), _Tick('10'),
+              _Tick('20'), _Tick('30'), _Tick('45°'), _Tick('65°'), _Tick('80°'),
             ])),
 
         const SizedBox(height: AppSpacing.md),

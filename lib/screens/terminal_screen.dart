@@ -86,11 +86,12 @@ class _TerminalScreenState extends State<TerminalScreen>
   }
 
   void _sendLine(String text) {
+    if (_term == null || !_connected) return;
     if (text.isEmpty) {
-      _term.sendInput('\n');
+      _term!.sendInput('\n');
       return;
     }
-    _term.sendInput('$text\n');
+    _term!.sendInput('$text\n');
     _inputCtrl.clear();
   }
 
@@ -255,14 +256,6 @@ class _ConnectionError extends StatelessWidget {
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(child: body),
-      ),
-    );
-  }
-}
-              fontStyle: FontStyle.italic,
-            ),
-          ),
-        ],
       ),
     );
   }

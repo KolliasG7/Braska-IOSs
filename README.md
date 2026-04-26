@@ -24,7 +24,7 @@
 
 ### **Native Android Quick Settings Integration**
 Strawberry Manager ships with pure Android Kotlin-level integrated Quick Settings Tiles allowing hardware modifications without even booting the Flutter engine!
-1. **Fan Tuner Tile**: Tap this newly designed Cooling/Snowflake notification tile to dynamically cycle and scale your APU Cooling threshold instantly between `45°C` to `85°C`. Your active mode is written explicitly in the tile natively.
+1. **Fan Tuner Tile**: Tap this newly designed Cooling/Snowflake notification tile to dynamically cycle and scale your APU Cooling threshold instantly between `-10°C` to `80°C`. Your active mode is written explicitly in the tile natively.
 2. **LED Tuner Tile**: Read out exactly what color profile your console is firing. Taps flawlessly cycle through 12+ API-queried colors seamlessly from the backend (`White`, `Blue`, `Red`, etc.) dynamically preventing out-of-index crashes.
 
 ---
