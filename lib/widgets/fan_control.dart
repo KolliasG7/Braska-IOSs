@@ -12,7 +12,7 @@ class FanControlCard extends StatefulWidget {
 }
 
 class _FanControlCardState extends State<FanControlCard> {
-  static const _min = -128, _max = 85.0;
+  static const _min = -10, _max = 80.0;
   late double _val;
   double? _lastCommittedValue;
   bool _writing = false;
@@ -175,8 +175,8 @@ class _FanControlCardState extends State<FanControlCard> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
-              _Tick('-20°'), _Tick('-10°'), _Tick('0°'), _Tick('10'),
-              _Tick('20'), _Tick('30'), _Tick('45°'), _Tick('65°'), _Tick('80°'),
+              _Tick('-10°'), _Tick('10°'),
+              _Tick('25'), _Tick('35'), _Tick('45°'), _Tick('65°'), _Tick('80°'),
             ])),
 
         const SizedBox(height: AppSpacing.md),
