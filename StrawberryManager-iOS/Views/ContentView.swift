@@ -1,36 +1,37 @@
 // ContentView.swift
-// Root navigation controller - Updated with proper dependency injection
+// Root view with animated transition between Connect and Dashboard
 
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject var connectionViewModel: ConnectionViewModel
-    
+
     var body: some View {
         Group {
             switch connectionViewModel.state {
-            case .idle, .connecting, .error, .needsAuth:
-                ConnectView()
             case .connected:
-                // Create dashboard with proper API service initialization
-                if let api = connectionViewModel.api,
-                   let baseURL = URL(string: connectionViewModel.serverAddress) {
+                if let api = connectionViewModel.apiService,
+                   let url = URL(string: connectionViewModel.effectiveBaseURL) {
                     DashboardView(
                         apiService: api,
-                        baseURL: baseURL,
+                        baseURL: url,
                         token: connectionViewModel.token
                     )
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.96)),
+                        removal: .opacity.combined(with: .scale(scale: 1.02))
+                    ))
                 } else {
-                    // Fallback to connect screen if API not initialized
                     ConnectView()
                 }
+            default:
+                ConnectView()
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.96)),
+                        removal: .opacity.combined(with: .scale(scale: 1.02))
+                    ))
             }
         }
-        .animation(.easeInOut, value: connectionViewModel.state)
+        .animation(.easeInOut(duration: 0.38), value: connectionViewModel.state)
     }
-}
-
-#Preview {
-    ContentView()
-        .environmentObject(ConnectionViewModel())
 }

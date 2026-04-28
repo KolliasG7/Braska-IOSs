@@ -1,78 +1,101 @@
 // FilesViewModel.swift
-// File manager view model
+// Full file browser view model - ported from Flutter
 
 import Foundation
 import Combine
-import UniformTypeIdentifiers
-
-struct FileItem: Identifiable, Codable {
-    let name: String
-    let path: String
-    let isDirectory: Bool
-    let size: Int64
-    let modifiedTime: String?
-    
-    var id: String { path }
-    
-    enum CodingKeys: String, CodingKey {
-        case name, path
-        case isDirectory = "is_directory"
-        case size
-        case modifiedTime = "modified_time"
-    }
-}
-
-struct DirectoryListing: Codable {
-    let path: String
-    let files: [FileItem]
-}
 
 @MainActor
 class FilesViewModel: ObservableObject {
-    @Published var currentPath: String = "/user/home"
-    @Published var files: [FileItem] = []
-    @Published var isLoading: Bool = false
+    @Published var currentPath: String = "/home"
+    @Published var items: [APIService.FileItem] = []
+    @Published var isLoading: Bool = true
     @Published var errorMessage: String?
-    
+    @Published var isUploading: Bool = false
+
     private let apiService: APIService
     private var cancellables = Set<AnyCancellable>()
-    
+    private var history: [String] = ["/home"]
+    private var loadInFlight = false
+
     init(apiService: APIService) {
         self.apiService = apiService
-        loadDirectory(currentPath)
+        loadDirectory("/home")
     }
-    
+
+    var canGoBack: Bool { history.count > 1 }
+
     func loadDirectory(_ path: String) {
+        guard !loadInFlight else { return }
+        loadInFlight = true
         isLoading = true
         errorMessage = nil
-        
-        // Note: Simplified - actual API call would need implementation
-        // in APIService for file listing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.isLoading = false
-            // Mock data for now
-            self?.files = [
-                FileItem(name: "documents", path: "\(path)/documents", isDirectory: true, size: 0, modifiedTime: nil),
-                FileItem(name: "downloads", path: "\(path)/downloads", isDirectory: true, size: 0, modifiedTime: nil),
-                FileItem(name: "file.txt", path: "\(path)/file.txt", isDirectory: false, size: 1024, modifiedTime: "2024-01-01"),
-            ]
-            self?.currentPath = path
-        }
+
+        apiService.listFiles(path: path)
+            .sink { [weak self] completion in
+                self?.isLoading = false
+                self?.loadInFlight = false
+                if case .failure(let error) = completion {
+                    self?.errorMessage = error.localizedDescription
+                }
+            } receiveValue: { [weak self] response in
+                guard let self = self else { return }
+                if let serverError = response.error, !serverError.isEmpty {
+                    self.errorMessage = serverError
+                    self.items = []
+                } else {
+                    self.currentPath = response.path ?? path
+                    self.items = (response.items ?? []).sorted { a, b in
+                        if a.isDirectory != b.isDirectory { return a.isDirectory }
+                        return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
+                    }
+                }
+            }
+            .store(in: &cancellables)
     }
-    
-    func navigateUp() {
-        guard currentPath != "/" else { return }
-        let components = currentPath.split(separator: "/")
-        if components.count > 1 {
-            let parentPath = "/" + components.dropLast().joined(separator: "/")
-            loadDirectory(parentPath)
-        } else {
-            loadDirectory("/")
-        }
+
+    func navigate(to path: String) {
+        guard !loadInFlight else { return }
+        history.append(path)
+        loadDirectory(path)
     }
-    
-    func deleteFile(_ file: FileItem) {
-        // Implement file deletion
-        files.removeAll { $0.id == file.id }
+
+    func goBack() {
+        guard !loadInFlight, history.count > 1 else { return }
+        history.removeLast()
+        loadDirectory(history.last!)
+    }
+
+    func refresh() {
+        loadDirectory(currentPath)
+    }
+
+    func deleteFile(at path: String) {
+        apiService.deleteFile(path: path)
+            .sink { [weak self] completion in
+                if case .failure(let error) = completion {
+                    self?.errorMessage = error.localizedDescription
+                } else {
+                    self?.refresh()
+                }
+            } receiveValue: { _ in }
+            .store(in: &cancellables)
+    }
+
+    func downloadFile(at path: String) -> AnyPublisher<Data, APIError> {
+        apiService.downloadFile(path: path)
+    }
+
+    func uploadFile(data: Data, filename: String) {
+        isUploading = true
+        apiService.uploadFile(data: data, filename: filename, destDir: currentPath)
+            .sink { [weak self] completion in
+                self?.isUploading = false
+                if case .failure(let error) = completion {
+                    self?.errorMessage = error.localizedDescription
+                } else {
+                    self?.refresh()
+                }
+            } receiveValue: { _ in }
+            .store(in: &cancellables)
     }
 }

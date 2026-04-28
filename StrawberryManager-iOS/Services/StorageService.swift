@@ -5,71 +5,45 @@ import Foundation
 
 class StorageService {
     static let shared = StorageService()
-    
     private let defaults = UserDefaults.standard
-    
-    private enum Keys {
-        static let serverAddress = "ps4_addr"
-        static let isTunnel = "ps4_is_tunnel"
-        static let authToken = "ps4_token"
-        static let showCPUGraph = "show_cpu_graph"
-        static let showRAMGraph = "show_ram_graph"
-        static let showThermalGraph = "show_thermal_graph"
-        static let showNotifications = "show_notifications"
-        static let reduceMotion = "reduce_motion"
-    }
-    
+
     private init() {}
-    
-    // MARK: - Connection Settings
-    
+
     var serverAddress: String? {
-        get { defaults.string(forKey: Keys.serverAddress) }
-        set { defaults.set(newValue, forKey: Keys.serverAddress) }
+        get { defaults.string(forKey: "ps4_addr") }
+        set { defaults.set(newValue, forKey: "ps4_addr") }
     }
-    
+
     var isTunnel: Bool {
-        get { defaults.bool(forKey: Keys.isTunnel) }
-        set { defaults.set(newValue, forKey: Keys.isTunnel) }
+        get { defaults.bool(forKey: "ps4_is_tunnel") }
+        set { defaults.set(newValue, forKey: "ps4_is_tunnel") }
     }
-    
+
     var authToken: String? {
-        get { defaults.string(forKey: Keys.authToken) }
-        set { defaults.set(newValue, forKey: Keys.authToken) }
+        get { defaults.string(forKey: "ps4_token") }
+        set { defaults.set(newValue, forKey: "ps4_token") }
     }
-    
-    // MARK: - UI Preferences
-    
-    var showCPUGraph: Bool {
-        get { defaults.object(forKey: Keys.showCPUGraph) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Keys.showCPUGraph) }
+
+    func getBool(_ key: String) -> Bool? {
+        defaults.object(forKey: key) == nil ? nil : defaults.bool(forKey: key)
     }
-    
-    var showRAMGraph: Bool {
-        get { defaults.object(forKey: Keys.showRAMGraph) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Keys.showRAMGraph) }
+
+    func setBool(_ key: String, _ value: Bool) {
+        defaults.set(value, forKey: key)
     }
-    
-    var showThermalGraph: Bool {
-        get { defaults.object(forKey: Keys.showThermalGraph) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Keys.showThermalGraph) }
+
+    func getString(_ key: String) -> String? {
+        defaults.string(forKey: key)
     }
-    
-    var showNotifications: Bool {
-        get { defaults.object(forKey: Keys.showNotifications) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Keys.showNotifications) }
+
+    func setString(_ key: String, _ value: String?) {
+        defaults.set(value, forKey: key)
     }
-    
-    var reduceMotion: Bool {
-        get { defaults.bool(forKey: Keys.reduceMotion) }
-        set { defaults.set(newValue, forKey: Keys.reduceMotion) }
-    }
-    
-    // MARK: - Utility Methods
-    
+
     func clearAll() {
-        serverAddress = nil
-        authToken = nil
-        isTunnel = false
+        let keys = ["ps4_addr", "ps4_is_tunnel", "ps4_token",
+                     "show_cpu_graph", "show_ram_graph", "show_thermal_graph",
+                     "show_notifications", "reduce_motion", "ps4_led_profiles"]
+        keys.forEach { defaults.removeObject(forKey: $0) }
     }
 }

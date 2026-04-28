@@ -1,109 +1,182 @@
 // ProcessesView.swift
-// Process manager view
+// Process manager with glass design
 
 import SwiftUI
 
 struct ProcessesView: View {
-    @StateObject var viewModel: ProcessesViewModel
-    @State private var showingKillAlert = false
-    @State private var processToKill: ProcessInfo?
-    @State private var selectedSignal: String = "SIGTERM"
-    
+    @ObservedObject var viewModel: ProcessesViewModel
+    @State private var processToKill: ProcessInfo? = nil
+
     var body: some View {
-        List {
-            ForEach(viewModel.processes) { process in
-                ProcessRow(process: process) {
-                    processToKill = process
-                    showingKillAlert = true
-                }
+        VStack(spacing: 0) {
+            // Header controls
+            headerBar
+
+            // Process list
+            if viewModel.isLoading && viewModel.processes.isEmpty {
+                Spacer()
+                ProgressView().tint(AppColors.accent)
+                Spacer()
+            } else if let error = viewModel.errorMessage {
+                errorView(error)
+            } else {
+                processList
             }
         }
-        .listStyle(.plain)
+        .alert("Kill Process", isPresented: .init(
+            get: { processToKill != nil },
+            set: { if !$0 { processToKill = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { processToKill = nil }
+            Button("SIGTERM") {
+                if let p = processToKill { viewModel.killProcess(p) }
+                processToKill = nil
+            }
+            Button("SIGKILL", role: .destructive) {
+                if let p = processToKill { viewModel.killProcess(p, signal: "SIGKILL") }
+                processToKill = nil
+            }
+        } message: {
+            Text("Kill \(processToKill?.name ?? "process") (PID \(processToKill?.pid ?? 0))?")
+        }
+    }
+
+    // MARK: - Header
+
+    private var headerBar: some View {
+        HStack(spacing: AppSpacing.sm) {
+            // Sort picker
+            Menu {
+                ForEach(ProcessesViewModel.SortOption.allCases, id: \.self) { option in
+                    Button {
+                        viewModel.sortBy = option
+                        viewModel.loadProcesses()
+                    } label: {
+                        HStack {
+                            Text(option.displayName)
+                            if viewModel.sortBy == option {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                GlassPill {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(.system(size: 10))
+                        Text(viewModel.sortBy.displayName)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(AppColors.accent)
+                }
+            }
+
+            Spacer()
+
+            // Auto-refresh toggle
+            Button {
+                viewModel.toggleAutoRefresh()
+            } label: {
+                GlassPill {
+                    HStack(spacing: 4) {
+                        Image(systemName: viewModel.autoRefresh ? "pause.fill" : "play.fill")
+                            .font(.system(size: 10))
+                        Text(viewModel.autoRefresh ? "Pause" : "Auto")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundStyle(viewModel.autoRefresh ? AppColors.success : AppColors.textDim)
+                }
+            }
+
+            // Refresh
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                viewModel.loadProcesses()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .foregroundStyle(AppColors.accent)
+            }
+        }
+        .padding(.horizontal, AppSpacing.xl)
+        .padding(.vertical, AppSpacing.sm)
+    }
+
+    // MARK: - Process List
+
+    private var processList: some View {
+        ScrollView {
+            LazyVStack(spacing: 2) {
+                ForEach(viewModel.processes) { process in
+                    processRow(process)
+                }
+            }
+            .padding(.horizontal, AppSpacing.lg)
+            .padding(.top, AppSpacing.xs)
+        }
         .refreshable {
             viewModel.loadProcesses()
         }
-        .navigationTitle("Processes")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Menu {
-                    Picker("Sort By", selection: $viewModel.sortBy) {
-                        ForEach(ProcessesViewModel.SortOption.allCases, id: \.self) { option in
-                            Text(option.displayName).tag(option)
-                        }
+    }
+
+    private func processRow(_ process: ProcessInfo) -> some View {
+        Button {
+            processToKill = process
+        } label: {
+            HStack(spacing: AppSpacing.md) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(process.name)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(AppColors.textPri)
+                        .lineLimit(1)
+
+                    Text("PID \(process.pid)")
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(AppColors.textDim)
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    HStack(spacing: 4) {
+                        Text("CPU")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(AppColors.textDim)
+                        Text(String(format: "%.1f%%", process.cpu))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(Color.percentColor(process.cpu))
                     }
-                } label: {
-                    Label("Sort", systemImage: "arrow.up.arrow.down")
+
+                    HStack(spacing: 4) {
+                        Text("MEM")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundStyle(AppColors.textDim)
+                        Text(String(format: "%.1f%%", process.memory))
+                            .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                            .foregroundStyle(AppColors.violet)
+                    }
                 }
             }
-            
-            ToolbarItem(placement: .topBarTrailing) {
-                Toggle(isOn: $viewModel.autoRefresh) {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .toggleStyle(.button)
-            }
-        }
-        .onChange(of: viewModel.sortBy) { _, _ in
-            viewModel.loadProcesses()
-        }
-        .onChange(of: viewModel.autoRefresh) { _, _ in
-            viewModel.toggleAutoRefresh()
-        }
-        .alert("Kill Process", isPresented: $showingKillAlert, presenting: processToKill) { process in
-            Button("Cancel", role: .cancel) {}
-            Button("SIGTERM") {
-                viewModel.killProcess(process, signal: "SIGTERM")
-            }
-            Button("SIGKILL", role: .destructive) {
-                viewModel.killProcess(process, signal: "SIGKILL")
-            }
-        } message: { process in
-            Text("Kill process '\(process.name)' (PID: \(process.pid))?")
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, AppSpacing.sm)
+            .background(AppColors.glassSubtle, in: RoundedRectangle(cornerRadius: AppRadii.sm))
         }
     }
-}
 
-struct ProcessRow: View {
-    let process: ProcessInfo
-    let onKill: () -> Void
-    
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(process.name)
-                    .font(.headline)
-                
-                HStack(spacing: 12) {
-                    Label(String(format: "%.0f%%", process.cpuPct), systemImage: "cpu")
-                        .font(.caption)
-                        .foregroundStyle(.cyan)
-                    
-                    Label(String(format: "%.0f MB", process.memRssMb), systemImage: "memorychip")
-                        .font(.caption)
-                        .foregroundStyle(.purple)
-                    
-                    Text("PID: \(process.pid)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+    private func errorView(_ message: String) -> some View {
+        VStack(spacing: AppSpacing.lg) {
+            Spacer()
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40))
+                .foregroundStyle(AppColors.danger)
+            Text(message)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.textSec)
+            GlassActionButton(title: "Retry", icon: "arrow.clockwise") {
+                viewModel.loadProcesses()
             }
-            
+            .frame(width: 150)
             Spacer()
         }
-        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-            Button(role: .destructive) {
-                onKill()
-            } label: {
-                Label("Kill", systemImage: "xmark.circle")
-            }
-        }
-    }
-}
-
-#Preview {
-    let mockAPI = APIService(baseURL: URL(string: "http://localhost")!, token: "")
-    NavigationStack {
-        ProcessesView(viewModel: ProcessesViewModel(apiService: mockAPI))
     }
 }

@@ -1,110 +1,102 @@
 // ControlTab.swift
-// Control tab for fan and LED settings
+// Fan, LED, and power controls with glass design
 
 import SwiftUI
 
 struct ControlTab: View {
-    @StateObject var viewModel: ControlViewModel
-    
+    @ObservedObject var viewModel: ControlViewModel
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // Error message
+            VStack(spacing: AppSpacing.lg) {
                 if let error = viewModel.errorMessage {
-                    ErrorBanner(message: error) {
-                        viewModel.errorMessage = nil
-                    }
+                    errorBanner(error)
                 }
-                
-                // Fan Control Card
+
                 FanControlCard(viewModel: viewModel)
-                
-                // LED Control Card
                 LEDControlCard(viewModel: viewModel)
-                
-                // Power Controls
-                PowerControlsCard()
+                PowerControlsCard(viewModel: viewModel)
+
+                Spacer().frame(height: AppSpacing.xxl)
             }
-            .padding()
+            .padding(.horizontal, AppSpacing.xl)
+            .padding(.top, AppSpacing.sm)
         }
-        .background(Color.appBackground)
+    }
+
+    private func errorBanner(_ message: String) -> some View {
+        GlassCardView(padding: AppSpacing.md, style: .subtle, tint: AppColors.danger.opacity(0.1)) {
+            HStack {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(AppColors.danger)
+                Text(message)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppColors.danger)
+                Spacer()
+                Button { viewModel.errorMessage = nil } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.textDim)
+                }
+            }
+        }
     }
 }
 
-// Fan Control Card
+// MARK: - Fan Control
+
 struct FanControlCard: View {
     @ObservedObject var viewModel: ControlViewModel
     @State private var tempThreshold: Double
-    
+
     init(viewModel: ControlViewModel) {
         self.viewModel = viewModel
         _tempThreshold = State(initialValue: Double(viewModel.currentFanThreshold))
     }
-    
+
     var body: some View {
-        TelemetryCard(
-            title: "Fan Control",
-            icon: "fan",
-            accentColor: Color.fanThresholdColor(for: Int(tempThreshold))
-        ) {
-            VStack(spacing: 20) {
-                // Large display
+        let tColor = Color.fanThresholdColor(for: Int(tempThreshold))
+
+        GlassCardView(tint: tColor.opacity(0.06)) {
+            VStack(spacing: AppSpacing.xl) {
+                StatLabel("FAN CONTROL")
+
+                // Large temperature display
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(Int(tempThreshold))")
                         .font(.system(size: 56, weight: .bold, design: .rounded))
-                        .foregroundStyle(Color.fanThresholdColor(for: Int(tempThreshold)))
-                    
-                    Text("°C")
+                        .foregroundStyle(tColor)
+                    Text("C")
                         .font(.title)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppColors.textDim)
                 }
-                
+
                 // Slider
-                VStack(spacing: 8) {
+                VStack(spacing: AppSpacing.sm) {
                     Slider(value: $tempThreshold, in: -10...80, step: 1)
-                        .tint(Color.fanThresholdColor(for: Int(tempThreshold)))
+                        .tint(tColor)
                         .disabled(viewModel.isUpdatingFan)
-                    
+
                     HStack {
-                        Text("-10°C")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        
+                        Text("-10C").font(.caption).foregroundStyle(AppColors.textDim)
                         Spacer()
-                        
-                        Text("80°C")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Text("80C").font(.caption).foregroundStyle(AppColors.textDim)
                     }
                 }
-                
+
                 // Apply button
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                GlassActionButton(
+                    title: viewModel.isUpdatingFan ? "Applying..." : "Apply Threshold",
+                    icon: "checkmark.circle",
+                    color: tColor,
+                    isLoading: viewModel.isUpdatingFan
+                ) {
                     viewModel.setFanThreshold(Int(tempThreshold))
-                } label: {
-                    if viewModel.isUpdatingFan {
-                        HStack {
-                            ProgressView()
-                                .progressViewStyle(.circular)
-                            Text("Applying...")
-                        }
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        Text("Apply Threshold")
-                            .frame(maxWidth: .infinity)
-                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(
-                    viewModel.isUpdatingFan || 
-                    Int(tempThreshold) == viewModel.currentFanThreshold
-                )
-                
-                // Info text
+
                 Text("Lower threshold = Fan starts cooling earlier")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppColors.textDim)
                     .multilineTextAlignment(.center)
             }
         }
@@ -114,223 +106,165 @@ struct FanControlCard: View {
     }
 }
 
-// LED Control Card
+// MARK: - LED Control
+
 struct LEDControlCard: View {
     @ObservedObject var viewModel: ControlViewModel
-    
+
     var body: some View {
-        TelemetryCard(
-            title: "LED Control",
-            icon: "lightbulb.led",
-            accentColor: .yellow
-        ) {
-            VStack(spacing: 16) {
-                // Current selection
+        GlassCardView(tint: AppColors.glassTintAmber) {
+            VStack(spacing: AppSpacing.lg) {
                 HStack {
-                    Circle()
-                        .fill(ledColor(for: viewModel.selectedLEDProfile))
-                        .frame(width: 32, height: 32)
-                    
-                    Text(viewModel.selectedLEDProfile.capitalized)
-                        .font(.title3.weight(.semibold))
-                    
+                    StatLabel("LED CONTROL")
                     Spacer()
+                    Text(viewModel.selectedLEDProfile.capitalized)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppColors.textPri)
                 }
-                
-                // LED profile picker
+
                 if !viewModel.availableLEDProfiles.isEmpty {
                     LazyVGrid(columns: [
                         GridItem(.flexible()),
                         GridItem(.flexible()),
                         GridItem(.flexible())
-                    ], spacing: 12) {
+                    ], spacing: AppSpacing.md) {
                         ForEach(viewModel.availableLEDProfiles, id: \.self) { profile in
-                            LEDProfileButton(
-                                profile: profile,
-                                isSelected: viewModel.selectedLEDProfile == profile,
-                                isUpdating: viewModel.isUpdatingLED
-                            ) {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                viewModel.setLEDProfile(profile)
-                            }
+                            ledButton(profile)
                         }
                     }
-                } else {
-                    Text("Loading profiles...")
-                        .foregroundStyle(.secondary)
-                        .padding()
                 }
             }
         }
     }
-    
+
+    private func ledButton(_ profile: String) -> some View {
+        let selected = viewModel.selectedLEDProfile == profile
+
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            viewModel.setLEDProfile(profile)
+        } label: {
+            VStack(spacing: 6) {
+                Circle()
+                    .fill(ledColor(for: profile))
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Circle().strokeBorder(.white.opacity(selected ? 0.4 : 0), lineWidth: 2)
+                    )
+
+                Text(profile.capitalized)
+                    .font(.system(size: 11, weight: selected ? .semibold : .regular))
+                    .foregroundStyle(selected ? AppColors.textPri : AppColors.textDim)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppSpacing.sm)
+            .background(
+                selected ? AppColors.glassRaised : .clear,
+                in: RoundedRectangle(cornerRadius: AppRadii.sm)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadii.sm)
+                    .strokeBorder(selected ? AppColors.glassBorderHi : .clear, lineWidth: 1)
+            )
+        }
+        .disabled(viewModel.isUpdatingLED)
+    }
+
     private func ledColor(for profile: String) -> Color {
         switch profile.lowercased() {
-        case "white", "white_pulsing": return .white
-        case "blue", "blue_pulsing": return .blue
-        case "red", "red_pulsing": return .red
-        case "green": return .green
-        case "pink": return .pink
-        case "off": return .gray
-        default: return .white
+        case "white":  return .white
+        case "blue":   return .blue
+        case "red":    return .red
+        case "green":  return .green
+        case "pink":   return .pink
+        case "orange": return .orange
+        case "purple": return .purple
+        case "cyan":   return .cyan
+        case "off":    return AppColors.textDim
+        default:       return AppColors.accent
         }
     }
 }
 
-// LED Profile Button
-struct LEDProfileButton: View {
-    let profile: String
-    let isSelected: Bool
-    let isUpdating: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 8) {
-                Circle()
-                    .fill(ledColor)
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        if isSelected {
-                            Circle()
-                                .stroke(Color.blue, lineWidth: 3)
-                        }
-                    }
-                
-                Text(profile.capitalized)
-                    .font(.caption2)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            }
-        }
-        .disabled(isUpdating)
-        .opacity(isUpdating && !isSelected ? 0.5 : 1)
-    }
-    
-    private var ledColor: Color {
-        switch profile.lowercased() {
-        case "white", "white_pulsing": return .white
-        case "blue", "blue_pulsing": return .blue
-        case "red", "red_pulsing": return .red
-        case "green": return .green
-        case "pink": return .pink
-        case "off": return .gray
-        default: return .white
-        }
-    }
-}
+// MARK: - Power Controls
 
-// Power Controls Card
 struct PowerControlsCard: View {
-    @State private var showingPowerAlert = false
-    @State private var selectedPowerAction: PowerAction?
-    
-    enum PowerAction {
-        case shutdown
-        case reboot
-        
+    @ObservedObject var viewModel: ControlViewModel
+    @State private var showConfirmation: PowerAction? = nil
+
+    enum PowerAction: String, Identifiable {
+        case shutdown, reboot, safemode
+        var id: String { rawValue }
+
         var title: String {
             switch self {
-            case .shutdown: return "Shutdown"
-            case .reboot: return "Reboot"
+            case .shutdown: return "Shut Down"
+            case .reboot:   return "Reboot"
+            case .safemode: return "Safe Mode"
             }
         }
-        
-        var message: String {
-            switch self {
-            case .shutdown: return "Are you sure you want to shutdown the PS4?"
-            case .reboot: return "Are you sure you want to reboot the PS4?"
-            }
-        }
-        
+
         var icon: String {
             switch self {
             case .shutdown: return "power"
-            case .reboot: return "arrow.clockwise"
+            case .reboot:   return "arrow.clockwise"
+            case .safemode: return "shield"
             }
         }
-    }
-    
-    var body: some View {
-        TelemetryCard(
-            title: "Power",
-            icon: "bolt.circle",
-            accentColor: .red
-        ) {
-            HStack(spacing: 12) {
-                Button {
-                    selectedPowerAction = .reboot
-                    showingPowerAlert = true
-                } label: {
-                    Label("Reboot", systemImage: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-                
-                Button {
-                    selectedPowerAction = .shutdown
-                    showingPowerAlert = true
-                } label: {
-                    Label("Shutdown", systemImage: "power")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
-            }
-        }
-        .alert(
-            selectedPowerAction?.title ?? "Power Action",
-            isPresented: $showingPowerAlert,
-            presenting: selectedPowerAction
-        ) { action in
-            Button("Cancel", role: .cancel) {}
-            Button(action.title, role: .destructive) {
-                // Perform power action
-                print("[PowerControls] \(action.title) action triggered")
-            }
-        } message: { action in
-            Text(action.message)
-        }
-    }
-}
 
-// Error Banner
-struct ErrorBanner: View {
-    let message: String
-    let onDismiss: () -> Void
-    
-    var body: some View {
-        HStack {
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(.red)
-            
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(.primary)
-            
-            Spacer()
-            
-            Button {
-                onDismiss()
-            } label: {
-                Image(systemName: "xmark.circle.fill")
-                    .foregroundStyle(.secondary)
+        var apiAction: String {
+            switch self {
+            case .shutdown: return "shutdown"
+            case .reboot:   return "reboot"
+            case .safemode: return "safe-mode"
             }
         }
-        .padding()
-        .background(Color.red.opacity(0.15))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-}
 
-#Preview {
-    let mockAPI = APIService(baseURL: URL(string: "http://localhost")!, token: "")
-    let viewModel = ControlViewModel(apiService: mockAPI)
-    viewModel.availableLEDProfiles = ["white", "blue", "red", "green", "pink", "white_pulsing", "blue_pulsing", "off"]
-    
-    return NavigationStack {
-        ControlTab(viewModel: viewModel)
-            .navigationTitle("Control")
+    var body: some View {
+        GlassCardView(tint: AppColors.glassTintRed) {
+            VStack(spacing: AppSpacing.lg) {
+                StatLabel("POWER")
+
+                HStack(spacing: AppSpacing.md) {
+                    powerButton(.shutdown, color: AppColors.danger)
+                    powerButton(.reboot, color: AppColors.amber)
+                    powerButton(.safemode, color: AppColors.violet)
+                }
+            }
+        }
+        .alert(item: $showConfirmation) { action in
+            Alert(
+                title: Text(action.title),
+                message: Text("Are you sure you want to \(action.title.lowercased())?"),
+                primaryButton: .destructive(Text(action.title)) {
+                    viewModel.powerAction(action.apiAction)
+                },
+                secondaryButton: .cancel()
+            )
+        }
+    }
+
+    private func powerButton(_ action: PowerAction, color: Color) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            showConfirmation = action
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: action.icon)
+                    .font(.system(size: 20))
+                    .foregroundStyle(color)
+                Text(action.title)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(AppColors.textSec)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, AppSpacing.md)
+            .background(color.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadii.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadii.md)
+                    .strokeBorder(color.opacity(0.2), lineWidth: 1)
+            )
+        }
     }
 }
