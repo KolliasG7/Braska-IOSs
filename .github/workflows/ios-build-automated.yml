@@ -1,0 +1,223 @@
+name: iOS Build Automated
+
+on:
+  push:
+    branches: [ main, 'feature/swift-ios-rewrite' ]
+    paths:
+      - 'StrawberryManager-iOS/**'
+      - '.github/workflows/ios-build-automated.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type'
+        required: true
+        default: 'debug'
+        type: choice
+        options:
+          - debug
+          - release
+
+jobs:
+  build-ios:
+    name: Build iOS IPA
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Install xcodeproj gem
+      run: |
+        sudo gem install xcodeproj
+    
+    - name: Generate Xcode Project
+      run: |
+        cat > generate_project.rb << 'EOF'
+        require 'xcodeproj'
+        
+        # Create new Xcode project
+        project_path = 'StrawberryManager.xcodeproj'
+        project = Xcodeproj::Project.new(project_path)
+        
+        # Create main target
+        target = project.new_target(:application, 'StrawberryManager', :ios, '17.0')
+        
+        # Add build configurations
+        project.build_configurations.each do |config|
+          config.build_settings['SWIFT_VERSION'] = '5.9'
+          config.build_settings['TARGETED_DEVICE_FAMILY'] = '1' # iPhone only
+          config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
+          config.build_settings['PRODUCT_NAME'] = '$(TARGET_NAME)'
+          config.build_settings['PRODUCT_BUNDLE_IDENTIFIER'] = 'com.github.strawberrymanager'
+          config.build_settings['INFOPLIST_FILE'] = 'StrawberryManager-iOS/Info.plist'
+          config.build_settings['CODE_SIGN_STYLE'] = 'Automatic'
+          config.build_settings['DEVELOPMENT_TEAM'] = ''
+          config.build_settings['CODE_SIGN_IDENTITY'] = ''
+          config.build_settings['CODE_SIGNING_REQUIRED'] = 'NO'
+          config.build_settings['CODE_SIGNING_ALLOWED'] = 'NO'
+        end
+        
+        # Add source files
+        main_group = project.main_group
+        source_group = main_group.new_group('StrawberryManager-iOS')
+        
+        # Add all Swift files
+        Dir.glob('StrawberryManager-iOS/**/*.swift').each do |file|
+          file_ref = source_group.new_file(file)
+          target.add_file_references([file_ref])
+        end
+        
+        # Set main app file
+        project.main_group.find_file_by_path('StrawberryManager-iOS/StrawberryManagerApp.swift')
+        
+        # Save project
+        project.save
+        
+        puts "✅ Xcode project generated successfully"
+        EOF
+        
+        ruby generate_project.rb
+    
+    - name: Create Info.plist
+      run: |
+        mkdir -p StrawberryManager-iOS
+        cat > StrawberryManager-iOS/Info.plist << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
+            <key>CFBundleDisplayName</key>
+            <string>Strawberry Manager</string>
+            <key>CFBundleExecutable</key>
+            <string>$(EXECUTABLE_NAME)</string>
+            <key>CFBundleIdentifier</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>$(PRODUCT_NAME)</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>LSRequiresIPhoneOS</key>
+            <true/>
+            <key>UILaunchStoryboardName</key>
+            <string>LaunchScreen</string>
+            <key>UISupportedInterfaceOrientations</key>
+            <array>
+                <string>UIInterfaceOrientationPortrait</string>
+                <string>UIInterfaceOrientationLandscapeLeft</string>
+                <string>UIInterfaceOrientationLandscapeRight</string>
+            </array>
+            <key>NSLocalNetworkUsageDescription</key>
+            <string>Connect to PlayStation 4 on local network</string>
+            <key>NSAppTransportSecurity</key>
+            <dict>
+                <key>NSAllowsArbitraryLoads</key>
+                <true/>
+            </dict>
+        </dict>
+        </plist>
+        EOF
+    
+    - name: Build for Simulator (No Code Signing)
+      run: |
+        xcodebuild clean build \
+          -project StrawberryManager.xcodeproj \
+          -scheme StrawberryManager \
+          -configuration Debug \
+          -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+          -derivedDataPath DerivedData \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+    
+    - name: Create .app bundle
+      run: |
+        # Find the built .app
+        APP_PATH=$(find DerivedData -name "*.app" | head -1)
+        echo "Found app at: $APP_PATH"
+        
+        # Create output directory
+        mkdir -p build/output
+        
+        # Copy .app bundle
+        if [ -n "$APP_PATH" ]; then
+          cp -r "$APP_PATH" build/output/StrawberryManager.app
+          echo "✅ .app bundle created"
+        else
+          echo "❌ .app bundle not found"
+          exit 1
+        fi
+    
+    - name: Create build info
+      run: |
+        cat > build/output/BUILD_INFO.txt << EOF
+        Strawberry Manager iOS Build
+        =============================
+        
+        Build Date: $(date)
+        Xcode Version: $(xcodebuild -version | head -1)
+        SDK Version: $(xcrun --sdk iphoneos --show-sdk-version)
+        
+        ⚠️  NOTE: This is a SIMULATOR build (.app)
+        
+        It CAN:
+        - Run on iOS Simulator
+        - Be tested in Xcode
+        - Validate code compiles
+        
+        It CANNOT:
+        - Run on physical iPhone (needs code signing)
+        - Be distributed via TestFlight
+        - Be submitted to App Store
+        
+        To create an IPA for devices:
+        1. Add code signing certificates to GitHub secrets
+        2. Configure DEVELOPMENT_TEAM in workflow
+        3. Enable CODE_SIGNING_REQUIRED
+        4. Workflow will then produce signed IPA
+        
+        OR:
+        - Download this .app
+        - Open in Xcode
+        - Archive with your signing certificates
+        - Export IPA
+        EOF
+    
+    - name: Upload iOS App
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-simulator-app
+        path: build/output/
+        retention-days: 30
+    
+    - name: Build Summary
+      run: |
+        echo "============================================"
+        echo "✅ iOS Simulator Build Complete"
+        echo "============================================"
+        echo ""
+        echo "📦 Artifact: ios-simulator-app"
+        echo "📱 Platform: iOS Simulator only"
+        echo "🔧 Type: .app bundle (not signed)"
+        echo ""
+        echo "To run:"
+        echo "1. Download artifact from Actions tab"
+        echo "2. Unzip the file"
+        echo "3. Drag StrawberryManager.app to iOS Simulator"
+        echo ""
+        echo "For device/TestFlight builds, see BUILD_INSTRUCTIONS.md"
+        echo "============================================"
