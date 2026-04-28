@@ -1,0 +1,420 @@
+name: iOS IPA for Sideloading
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'StrawberryManager-iOS/**'
+      - '.github/workflows/ios-ipa-sideload.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App version'
+        required: false
+        default: '1.0.0'
+
+jobs:
+  build-ipa:
+    name: Build Sideloadable IPA
+    runs-on: macos-14
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Xcode
+      run: |
+        sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+        xcodebuild -version
+    
+    - name: Install dependencies
+      run: |
+        brew install ldid
+        sudo gem install xcodeproj
+    
+    - name: Generate Xcode Project
+      run: |
+        cat > generate_xcode_project.rb << 'RUBY_SCRIPT'
+        require 'xcodeproj'
+        
+        puts "🔨 Generating Xcode project..."
+        
+        project_path = 'StrawberryManager.xcodeproj'
+        project = Xcodeproj::Project.new(project_path)
+        
+        # Create app target
+        target = project.new_target(:application, 'StrawberryManager', :ios, '17.0')
+        
+        # Build settings for unsigned build
+        target.build_configurations.each do |config|
+          config.build_settings.update({
+            'PRODUCT_NAME' => 'StrawberryManager',
+            'PRODUCT_BUNDLE_IDENTIFIER' => 'com.github.strawberrymanager.ios',
+            'SWIFT_VERSION' => '5.0',
+            'TARGETED_DEVICE_FAMILY' => '1,2',
+            'IPHONEOS_DEPLOYMENT_TARGET' => '17.0',
+            'INFOPLIST_FILE' => 'StrawberryManager-iOS/Info.plist',
+            'LD_RUNPATH_SEARCH_PATHS' => '$(inherited) @executable_path/Frameworks',
+            'ENABLE_BITCODE' => 'NO',
+            'CODE_SIGN_IDENTITY' => '-',
+            'CODE_SIGN_STYLE' => 'Manual',
+            'CODE_SIGNING_REQUIRED' => 'NO',
+            'CODE_SIGNING_ALLOWED' => 'NO',
+            'DEVELOPMENT_TEAM' => '',
+            'ASSETCATALOG_COMPILER_APPICON_NAME' => 'AppIcon',
+          })
+        end
+        
+        # Add source files
+        def add_files_to_group(project, target, group, directory_path, group_name = nil)
+          group_name ||= File.basename(directory_path)
+          new_group = group.new_group(group_name, directory_path)
+          
+          Dir.glob("#{directory_path}/**/*.swift").each do |file_path|
+            file_ref = new_group.new_reference(file_path)
+            target.source_build_phase.add_file_reference(file_ref)
+          end
+          
+          Dir.glob("#{directory_path}/*/").each do |sub_dir|
+            add_files_to_group(project, target, new_group, sub_dir.chomp('/'))
+          end
+        end
+        
+        main_group = project.main_group.new_group('Sources')
+        
+        # Add all source directories
+        ['Models', 'ViewModels', 'Views', 'Services', 'Utilities'].each do |dir|
+          dir_path = "StrawberryManager-iOS/#{dir}"
+          if Dir.exist?(dir_path)
+            add_files_to_group(project, target, main_group, dir_path)
+          end
+        end
+        
+        # Add main app file
+        app_file = main_group.new_reference('StrawberryManager-iOS/StrawberryManagerApp.swift')
+        target.source_build_phase.add_file_reference(app_file)
+        
+        # Save
+        project.save
+        puts "✅ Xcode project generated"
+        RUBY_SCRIPT
+        
+        ruby generate_xcode_project.rb
+    
+    - name: Create Info.plist
+      run: |
+        cat > StrawberryManager-iOS/Info.plist << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>$(EXECUTABLE_NAME)</string>
+            <key>CFBundleIdentifier</key>
+            <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>Strawberry Manager</string>
+            <key>CFBundleDisplayName</key>
+            <string>Strawberry Manager</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ github.event.inputs.version || '1.0.0' }}</string>
+            <key>CFBundleVersion</key>
+            <string>${{ github.run_number }}</string>
+            <key>LSRequiresIPhoneOS</key>
+            <true/>
+            <key>UILaunchStoryboardName</key>
+            <string>LaunchScreen</string>
+            <key>UISupportedInterfaceOrientations</key>
+            <array>
+                <string>UIInterfaceOrientationPortrait</string>
+                <string>UIInterfaceOrientationLandscapeLeft</string>
+                <string>UIInterfaceOrientationLandscapeRight</string>
+            </array>
+            <key>NSLocalNetworkUsageDescription</key>
+            <string>Connect to PlayStation 4 on local network for remote management</string>
+            <key>NSAppTransportSecurity</key>
+            <dict>
+                <key>NSAllowsArbitraryLoads</key>
+                <true/>
+            </dict>
+        </dict>
+        </plist>
+        EOF
+    
+    - name: Create Asset Catalog
+      run: |
+        mkdir -p StrawberryManager-iOS/Assets.xcassets/AppIcon.appiconset
+        cat > StrawberryManager-iOS/Assets.xcassets/AppIcon.appiconset/Contents.json << 'EOF'
+        {
+          "images" : [
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "20x20"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "20x20"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "29x29"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "29x29"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "40x40"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "40x40"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "2x",
+              "size" : "60x60"
+            },
+            {
+              "idiom" : "iphone",
+              "scale" : "3x",
+              "size" : "60x60"
+            },
+            {
+              "idiom" : "ios-marketing",
+              "scale" : "1x",
+              "size" : "1024x1024"
+            }
+          ],
+          "info" : {
+            "author" : "xcode",
+            "version" : 1
+          }
+        }
+        EOF
+    
+    - name: List available destinations
+      run: |
+        xcodebuild -showdestinations -project StrawberryManager.xcodeproj -scheme StrawberryManager 2>&1 | grep "platform:iOS" | head -5
+        
+    - name: Build for iOS (Generic Device)
+      run: |
+        xcodebuild clean archive \
+          -project StrawberryManager.xcodeproj \
+          -scheme StrawberryManager \
+          -configuration Release \
+          -archivePath build/StrawberryManager.xcarchive \
+          -destination 'generic/platform=iOS' \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO \
+          DEVELOPMENT_TEAM=""
+    
+    - name: Create unsigned IPA
+      run: |
+        mkdir -p build/Payload
+        
+        # Copy .app to Payload
+        cp -r build/StrawberryManager.xcarchive/Products/Applications/StrawberryManager.app build/Payload/
+        
+        # Create IPA (it's just a zip)
+        cd build
+        zip -r StrawberryManager-unsigned.ipa Payload
+        cd ..
+        
+        echo "✅ Unsigned IPA created"
+        ls -lh build/StrawberryManager-unsigned.ipa
+    
+    - name: Sign with ldid (for jailbroken devices)
+      run: |
+        # Create fake-signed IPA for jailbroken iPhones
+        mkdir -p build/Payload-signed
+        cp -r build/StrawberryManager.xcarchive/Products/Applications/StrawberryManager.app build/Payload-signed/
+        
+        # Fakesign with ldid
+        ldid -S build/Payload-signed/StrawberryManager.app/StrawberryManager
+        
+        cd build
+        zip -r StrawberryManager-fakesigned.ipa Payload-signed
+        cd ..
+        
+        echo "✅ Fakesigned IPA created (for jailbroken devices)"
+        ls -lh build/StrawberryManager-fakesigned.ipa
+    
+    - name: Create sideload instructions
+      run: |
+        cat > build/SIDELOAD_INSTRUCTIONS.txt << 'EOF'
+        Strawberry Manager iOS - Sideloading Instructions
+        ==================================================
+        
+        You have TWO IPA files:
+        
+        1. StrawberryManager-unsigned.ipa
+           - For use with sideloading tools
+           - Requires additional signing
+        
+        2. StrawberryManager-fakesigned.ipa  
+           - For jailbroken iPhones only
+           - Install directly with Filza or similar
+        
+        ==================================================
+        OPTION 1: Sideload with AltStore (Windows/Mac)
+        ==================================================
+        
+        1. Download AltStore:
+           https://altstore.io/
+        
+        2. Install AltServer on your PC
+        
+        3. Connect iPhone via USB
+        
+        4. Open AltStore on iPhone
+        
+        5. Tap "+" and select StrawberryManager-unsigned.ipa
+        
+        6. Enter your Apple ID (free, no Developer account needed)
+        
+        7. App will be signed with your personal certificate
+        
+        8. Valid for 7 days, then re-sign with AltStore
+        
+        ==================================================
+        OPTION 2: Sideload with Sideloadly (Windows/Mac)
+        ==================================================
+        
+        1. Download Sideloadly:
+           https://sideloadly.io/
+        
+        2. Connect iPhone via USB
+        
+        3. Drag StrawberryManager-unsigned.ipa to Sideloadly
+        
+        4. Enter your Apple ID
+        
+        5. Click Start
+        
+        6. Valid for 7 days (or 1 year with paid Developer account)
+        
+        ==================================================
+        OPTION 3: Jailbroken iPhone (No PC needed!)
+        ==================================================
+        
+        1. Use StrawberryManager-fakesigned.ipa
+        
+        2. Download to iPhone via Safari
+        
+        3. Open in Filza File Manager
+        
+        4. Tap IPA → Install
+        
+        5. Done! Permanent installation.
+        
+        ==================================================
+        OPTION 4: Xcode Free Provisioning (Mac only)
+        ==================================================
+        
+        1. Open StrawberryManager.xcodeproj in Xcode
+        
+        2. Connect iPhone
+        
+        3. Select your iPhone as destination
+        
+        4. Signing & Capabilities → Team → Add Account
+        
+        5. Sign in with free Apple ID
+        
+        6. Product → Run
+        
+        7. Valid for 7 days
+        
+        ==================================================
+        TROUBLESHOOTING
+        ==================================================
+        
+        "Untrusted Developer":
+        - Settings → General → VPN & Device Management
+        - Tap your Apple ID
+        - Tap "Trust"
+        
+        "Unable to Install":
+        - Delete old version first
+        - Restart iPhone
+        - Try different sideload tool
+        
+        "App Crashes on Launch":
+        - Ensure iOS 17.0 or higher
+        - Re-sign with fresh certificate
+        
+        ==================================================
+        
+        For TestFlight distribution (no re-signing needed):
+        - Requires Apple Developer account ($99/year)
+        - Add certificates to GitHub Secrets
+        - See AUTOMATION_GUIDE.md
+        
+        ==================================================
+        EOF
+    
+    - name: Upload IPAs
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-ipa-files
+        path: |
+          build/StrawberryManager-unsigned.ipa
+          build/StrawberryManager-fakesigned.ipa
+          build/SIDELOAD_INSTRUCTIONS.txt
+        retention-days: 90
+    
+    - name: Create Release Assets (if tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          build/StrawberryManager-unsigned.ipa
+          build/StrawberryManager-fakesigned.ipa
+          build/SIDELOAD_INSTRUCTIONS.txt
+        body: |
+          ## iOS IPA Files for Sideloading
+          
+          Download one of these IPA files and use a sideloading tool to install on your iPhone.
+          
+          ### Files:
+          - `StrawberryManager-unsigned.ipa` - For AltStore, Sideloadly
+          - `StrawberryManager-fakesigned.ipa` - For jailbroken iPhones
+          - `SIDELOAD_INSTRUCTIONS.txt` - Complete installation guide
+          
+          ### Quick Start:
+          1. Download `StrawberryManager-unsigned.ipa`
+          2. Install AltStore from https://altstore.io/
+          3. Sideload the IPA with your Apple ID
+          4. No paid Developer account required!
+          
+          See instructions file for all methods.
+    
+    - name: Build Summary
+      run: |
+        echo "============================================"
+        echo "✅ iOS IPA Build Complete"
+        echo "============================================"
+        echo ""
+        ls -lh build/*.ipa
+        echo ""
+        echo "📦 Two IPA files created:"
+        echo "1. StrawberryManager-unsigned.ipa (for AltStore/Sideloadly)"
+        echo "2. StrawberryManager-fakesigned.ipa (for jailbroken iPhones)"
+        echo ""
+        echo "📥 Download from Actions → Artifacts → ios-ipa-files"
+        echo ""
+        echo "📖 See SIDELOAD_INSTRUCTIONS.txt for installation methods"
+        echo "============================================"
