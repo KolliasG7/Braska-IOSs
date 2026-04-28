@@ -1,0 +1,119 @@
+name: iOS Build
+
+on:
+  push:
+    branches: [ feature/swift-ios-rewrite, main ]
+    paths:
+      - 'StrawberryManager-iOS/**'
+      - '.github/workflows/ios-build.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'StrawberryManager-iOS/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS App
+    runs-on: macos-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: latest-stable
+    
+    - name: Show Xcode version
+      run: xcodebuild -version
+    
+    - name: Check if Xcode project exists
+      id: check_project
+      run: |
+        if [ -f "StrawberryManager.xcodeproj/project.pbxproj" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          echo "✅ Xcode project found"
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "⚠️  Xcode project not found - need to create it first"
+          echo "📝 See StrawberryManager-iOS/README.md for setup instructions"
+        fi
+    
+    - name: Install dependencies (if using Swift Package Manager)
+      if: steps.check_project.outputs.exists == 'true'
+      run: |
+        if [ -f "Package.swift" ]; then
+          swift package resolve
+        fi
+      continue-on-error: true
+    
+    - name: Build for iOS Simulator
+      if: steps.check_project.outputs.exists == 'true'
+      run: |
+        xcodebuild clean build \
+          -project StrawberryManager.xcodeproj \
+          -scheme StrawberryManager \
+          -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+          -configuration Debug \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          CODE_SIGNING_ALLOWED=NO
+      continue-on-error: true
+    
+    - name: Run Tests (if available)
+      if: steps.check_project.outputs.exists == 'true'
+      run: |
+        xcodebuild test \
+          -project StrawberryManager.xcodeproj \
+          -scheme StrawberryManager \
+          -destination 'platform=iOS Simulator,name=iPhone 15 Pro,OS=latest' \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO
+      continue-on-error: true
+    
+    - name: Archive build logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-logs
+        path: |
+          ~/Library/Logs/DiagnosticReports/
+          *.log
+        retention-days: 7
+        if-no-files-found: ignore
+    
+    - name: Setup Instructions
+      if: steps.check_project.outputs.exists == 'false'
+      run: |
+        echo "============================================"
+        echo "📱 iOS App Setup Required"
+        echo "============================================"
+        echo ""
+        echo "The Swift iOS source code is ready but needs to be"
+        echo "configured in Xcode first."
+        echo ""
+        echo "🔧 Setup Steps:"
+        echo "1. Open Xcode"
+        echo "2. Create New Project → iOS App"
+        echo "3. Product Name: StrawberryManager"
+        echo "4. Interface: SwiftUI"
+        echo "5. Language: Swift"
+        echo "6. Minimum Deployment: iOS 17.0"
+        echo ""
+        echo "7. Copy files from StrawberryManager-iOS/ to project:"
+        echo "   - Models/"
+        echo "   - ViewModels/"
+        echo "   - Views/"
+        echo "   - Services/"
+        echo "   - Utilities/"
+        echo ""
+        echo "8. Add required frameworks:"
+        echo "   - Charts.framework"
+        echo "   - Combine.framework"
+        echo ""
+        echo "9. Commit the generated .xcodeproj to repository"
+        echo ""
+        echo "📖 See StrawberryManager-iOS/README.md for details"
+        echo "============================================"

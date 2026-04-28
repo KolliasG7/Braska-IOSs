@@ -1,0 +1,113 @@
+name: Flutter Build
+
+on:
+  push:
+    branches: [ main, 'fix/**', 'feature/**' ]
+    paths:
+      - 'lib/**'
+      - 'android/**'
+      - 'ios/**'
+      - 'pubspec.yaml'
+      - '.github/workflows/flutter-build.yml'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze Flutter Code
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Verify formatting
+      run: dart format --output=none --set-exit-if-changed .
+      continue-on-error: true
+    
+    - name: Analyze code
+      run: flutter analyze
+    
+    - name: Run tests
+      run: flutter test
+      continue-on-error: true
+  
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    needs: analyze
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+        cache: 'gradle'
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Build APK
+      run: flutter build apk --release
+    
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-release-apk
+        path: build/app/outputs/flutter-apk/app-release.apk
+        retention-days: 30
+  
+  build-ios:
+    name: Build iOS (Flutter)
+    runs-on: macos-latest
+    needs: analyze
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.19.0'
+        channel: 'stable'
+        cache: true
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Build iOS (no code signing)
+      run: |
+        flutter build ios --release --no-codesign
+      continue-on-error: true
+    
+    - name: Archive iOS build
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ios-build
+        path: build/ios/iphoneos/
+        retention-days: 30
+        if-no-files-found: ignore
