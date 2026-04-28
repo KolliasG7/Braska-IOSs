@@ -34,9 +34,7 @@ struct DashboardView: View {
                     .navigationBarTitleDisplayMode(.large)
                     .toolbar {
                         ToolbarItem(placement: .topBarTrailing) {
-                            Button {
-                                showingSettings = true
-                            } label: {
+                            Button(action: { showingSettings = true }) {
                                 Image(systemName: "gearshape")
                             }
                         }

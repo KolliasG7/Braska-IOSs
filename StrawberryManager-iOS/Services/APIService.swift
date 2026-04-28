@@ -200,8 +200,26 @@ class APIService {
             .eraseToAnyPublisher()
     }
     
+    // MARK: - Process Management
+    
+    func getProcesses(limit: Int = 50, sortBy: String = "cpu") -> AnyPublisher<[ProcessInfo], APIError> {
+        request("/api/system/processes?limit=\(limit)&sort_by=\(sortBy)")
+            .map { (response: ProcessListResponse) in response.processes }
+            .eraseToAnyPublisher()
+    }
+    
+    struct KillProcessRequest: Encodable {
+        let pid: Int
+        let signal: String
+    }
+    
+    func killProcess(_ pid: Int, signal: String = "SIGTERM") -> AnyPublisher<Void, APIError> {
+        request("/api/system/process/kill", method: .post, body: KillProcessRequest(pid: pid, signal: signal))
+            .map { (_: [String: String]) in () }
+            .eraseToAnyPublisher()
+    }
+    
     // Additional endpoints to be implemented:
-    // - Process management
     // - File operations
     // - Power controls
     // - Tunnel management

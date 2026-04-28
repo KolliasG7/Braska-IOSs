@@ -24,9 +24,11 @@ class ControlViewModel: ObservableObject {
     func loadInitialState() {
         // Load fan threshold
         apiService.getFanThreshold()
-            .sink { [weak self] completion in
+            .sink { completion in
                 if case .failure(let error) = completion {
-                    self?.errorMessage = error.localizedDescription
+                    Task { @MainActor in
+                        self.errorMessage = error.localizedDescription
+                    }
                 }
             } receiveValue: { [weak self] threshold in
                 self?.currentFanThreshold = threshold
