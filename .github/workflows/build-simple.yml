@@ -1,18 +1,39 @@
-name: Build iOS IPA (Simple)
+name: Build iOS IPA
 
 on:
   push:
-    branches: [chore/hardening-telemetry-errors]
+    branches: [main]
+    paths:
+      - "lib/**"
+      - "ios/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/build-simple.yml"
   workflow_dispatch:
     inputs:
-      reason:
-        description: 'Reason for manual trigger'
+      build_mode:
+        description: "Build mode"
         required: true
-        default: 'Manual build - Simple'
+        default: "debug"
+        type: choice
+        options:
+          - debug
+          - release
+      reason:
+        description: "Reason for manual trigger"
+        required: false
+        default: "Manual iOS build"
+
+concurrency:
+  group: ios-build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-ios:
     runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      FLUTTER_VERSION: "3.27.4"
     
     steps:
       - name: Checkout code
@@ -21,29 +42,57 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.4'
-          channel: 'stable'
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: "stable"
           cache: true
+
+      - name: Cache CocoaPods + iOS pods
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cocoapods
+            ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
           
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Install iOS pods
+        run: |
+          cd ios
+          pod install
         
       - name: Generate iOS Icons
         run: flutter pub run flutter_launcher_icons:main
-            
-      - name: Build iOS (no code signing)
+
+      - name: Build iOS (debug/no codesign)
+        if: ${{ github.event_name == 'push' || inputs.build_mode == 'debug' }}
+        run: flutter build ios --debug --no-codesign
+
+      - name: Build iOS (release/no codesign)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_mode == 'release' }}
         run: flutter build ios --release --no-codesign
-            
+
       - name: Package into IPA
         run: |
+          MODE="${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}"
+          if [ "$MODE" = "release" ]; then
+            APP_PATH="build/ios/iphoneos/Runner.app"
+            IPA_NAME="Strawberry-Manager-Release.ipa"
+          else
+            APP_PATH="build/ios/iphoneos/Runner.app"
+            IPA_NAME="Strawberry-Manager-Debug.ipa"
+          fi
           mkdir -p Payload
-          cp -r build/ios/iphoneos/Runner.app Payload/
-          zip -r Strawberry-Manager-Simple.ipa Payload/
+          cp -r "$APP_PATH" Payload/
+          zip -r "$IPA_NAME" Payload/
           rm -rf Payload/
           
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
-          name: Strawberry-Manager-Simple-IPA
-          path: Strawberry-Manager-Simple.ipa
-          retention-days: 30
+          name: Strawberry-Manager-${{ github.event_name == 'workflow_dispatch' && inputs.build_mode || 'debug' }}-IPA
+          path: "*.ipa"
+          retention-days: 14
