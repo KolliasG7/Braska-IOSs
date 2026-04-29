@@ -38,6 +38,9 @@ class ConnectionProvider extends ChangeNotifier {
 
   StreamSubscription? _wsSub;
   StreamSubscription? _wsStateSub;
+  Timer? _frameNotifyTimer;
+  DateTime _lastFrameNotifyAt = DateTime.fromMillisecondsSinceEpoch(0);
+  static const Duration _minFrameNotifyGap = Duration(milliseconds: 160);
 
   final List<double> cpuHistory  = [];
   final List<double> ramHistory  = [];
@@ -212,7 +215,23 @@ class ConnectionProvider extends ChangeNotifier {
       }
     }
     _sendNotification(f);
-    notifyListeners();
+    _notifyForFrame();
+  }
+
+  void _notifyForFrame() {
+    final now = DateTime.now();
+    final elapsed = now.difference(_lastFrameNotifyAt);
+    if (elapsed >= _minFrameNotifyGap) {
+      _lastFrameNotifyAt = now;
+      notifyListeners();
+      return;
+    }
+    if (_frameNotifyTimer != null) return;
+    _frameNotifyTimer = Timer(_minFrameNotifyGap - elapsed, () {
+      _frameNotifyTimer = null;
+      _lastFrameNotifyAt = DateTime.now();
+      notifyListeners();
+    });
   }
 
   Future<String> startTunnel() async {
@@ -296,6 +315,8 @@ class ConnectionProvider extends ChangeNotifier {
   }
 
   void _teardown() {
+    _frameNotifyTimer?.cancel();
+    _frameNotifyTimer = null;
     _wsSub?.cancel();
     _wsStateSub?.cancel();
     _ws?.dispose();
