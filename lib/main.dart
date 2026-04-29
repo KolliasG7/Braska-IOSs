@@ -1,6 +1,7 @@
 // lib/main.dart — Strawberry Manager by rmux
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:ui';
 import 'package:provider/provider.dart';
 import 'providers/connection_provider.dart';
 import 'services/notification_service.dart';
@@ -63,10 +64,27 @@ class _Root extends StatelessWidget {
         ],
       ),
       transitionBuilder: (child, anim) {
-        final scale = Tween<double>(begin: 0.96, end: 1.0).animate(anim);
+        final curved = CurvedAnimation(parent: anim, curve: AppCurves.emphasized);
+        final scale = Tween<double>(begin: 0.94, end: 1.0).animate(curved);
+        final slide = Tween<Offset>(begin: const Offset(0, 0.02), end: Offset.zero).animate(curved);
         return FadeTransition(
-          opacity: anim,
-          child: ScaleTransition(scale: scale, child: child),
+          opacity: curved,
+          child: SlideTransition(
+            position: slide,
+            child: ScaleTransition(
+              scale: scale,
+              child: AnimatedBuilder(
+                animation: anim,
+                builder: (_, __) {
+                  final blur = (1.0 - anim.value) * 8;
+                  return ImageFiltered(
+                    imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+                    child: child,
+                  );
+                },
+              ),
+            ),
+          ),
         );
       },
       child: switch (cp.connState) {

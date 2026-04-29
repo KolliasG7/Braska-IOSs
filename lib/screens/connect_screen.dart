@@ -29,6 +29,7 @@ class _ConnectScreenState extends State<ConnectScreen>
   late final AnimationController _entranceCtrl;
   late final Animation<double>   _entranceFade;
   late final Animation<Offset>   _entranceSlide;
+  double _scrollDepth = 0;
 
   @override
   void initState() {
@@ -184,22 +185,36 @@ class _ConnectScreenState extends State<ConnectScreen>
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
-                child: SingleChildScrollView(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (n) {
+                    if (n.metrics.axis == Axis.vertical) {
+                      final d = (n.metrics.pixels * 0.06).clamp(0, 14).toDouble();
+                      if ((d - _scrollDepth).abs() > 0.5 && mounted) {
+                        setState(() => _scrollDepth = d);
+                      }
+                    }
+                    return false;
+                  },
+                  child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Column(children: [
                 const SizedBox(height: 48),
-                const _HeroTitle(),
-                const SizedBox(height: AppSpacing.lg),
-                const _GlassTagline(),
+                Transform.translate(
+                  offset: Offset(0, _scrollDepth * -0.45),
+                  child: const _HeroTitle(),
+                ),
                 const SizedBox(height: AppSpacing.xl),
 
                 if (cp.rawInput.isNotEmpty || _lastTunnelUrl != null) ...[
-                  _StatusPanel(
-                    lastHost: cp.rawInput.isNotEmpty
-                        ? cp.rawInput
-                        : _lastTunnelUrl!,
-                    isTunnel: _isTunnel,
-                    ready: cp.hasToken,
+                  Transform.translate(
+                    offset: Offset(0, _scrollDepth * -0.25),
+                    child: _StatusPanel(
+                      lastHost: cp.rawInput.isNotEmpty
+                          ? cp.rawInput
+                          : _lastTunnelUrl!,
+                      isTunnel: _isTunnel,
+                      ready: cp.hasToken,
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.lg),
                 ],
@@ -335,6 +350,7 @@ class _ConnectScreenState extends State<ConnectScreen>
                 const SizedBox(height: AppSpacing.xxl),
               ]),
             ),
+                ),
               ),
             ),
           ),
@@ -541,28 +557,6 @@ class _HeroTitle extends StatelessWidget {
         ),
       ),
     ]);
-  }
-}
-
-class _GlassTagline extends StatelessWidget {
-  const _GlassTagline();
-
-  @override
-  Widget build(BuildContext context) {
-    return const GlassPill(
-      selected: true,
-      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Text(
-        'PlayStation 4 Control Surface',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Bk.textHighlight,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.35,
-        ),
-      ),
-    );
   }
 }
 

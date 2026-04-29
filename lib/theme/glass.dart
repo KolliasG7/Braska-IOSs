@@ -78,6 +78,67 @@ class LiquidGlassSheen extends StatelessWidget {
   }
 }
 
+class _AnimatedSheenSweep extends StatefulWidget {
+  const _AnimatedSheenSweep({
+    required this.borderRadius,
+    required this.intensity,
+  });
+
+  final BorderRadius borderRadius;
+  final double intensity;
+
+  @override
+  State<_AnimatedSheenSweep> createState() => _AnimatedSheenSweepState();
+}
+
+class _AnimatedSheenSweepState extends State<_AnimatedSheenSweep>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 3200),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = widget.borderRadius;
+    final sweep = AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = _c.value;
+        final x = -1.2 + (t * 2.4);
+        return Transform.translate(
+          offset: Offset(220 * x, 0),
+          child: Transform.rotate(
+            angle: -0.35,
+            child: Container(
+              width: 120,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.transparent,
+                    Colors.white.withValues(alpha: 0.11 * widget.intensity),
+                    Colors.white.withValues(alpha: 0.19 * widget.intensity),
+                    Colors.white.withValues(alpha: 0.11 * widget.intensity),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    final clipped = ClipRRect(borderRadius: radius, child: sweep);
+    return IgnorePointer(child: Opacity(opacity: 0.7, child: clipped));
+  }
+}
+
 /// Translucent frosted-glass card. Uses a BackdropFilter so the dark gradient
 /// background shows through a blurred layer. Stack under an `AppShell` or any
 /// scaffold with a non-opaque background for the effect to be visible.
@@ -163,6 +224,13 @@ class GlassCard extends StatelessWidget {
             intensity: sheenIntensity,
           ),
         ),
+        if ((subtle ? GlassStyle.subtle : style) != GlassStyle.subtle)
+          Positioned.fill(
+            child: _AnimatedSheenSweep(
+              borderRadius: borderRadius,
+              intensity: sheenIntensity,
+            ),
+          ),
       ],
     );
     Widget content = ClipRRect(
@@ -262,6 +330,13 @@ class GlassPill extends StatelessWidget {
                 intensity: selected ? 0.85 : 0.95,
               ),
             ),
+            if (selected)
+              Positioned.fill(
+                child: _AnimatedSheenSweep(
+                  borderRadius: borderRadius,
+                  intensity: 0.9,
+                ),
+              ),
           ],
         ),
       ),
