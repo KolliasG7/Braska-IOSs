@@ -1,4 +1,4 @@
-// lib/screens/connect_screen.dart — Strawberry Manager landing
+﻿// lib/screens/connect_screen.dart â€” Strawberry Manager landing
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -16,7 +16,7 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen>
-    with SingleTickerProviderStateMixin {
+{
   final _ctrl    = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isTunnel = false;
@@ -26,10 +26,6 @@ class _ConnectScreenState extends State<ConnectScreen>
   List<PayloadRecord> _payloadHistory = [];
   final _payloadSender = const PayloadSenderService();
 
-  late final AnimationController _entranceCtrl;
-  late final Animation<double>   _entranceFade;
-  late final Animation<Offset>   _entranceSlide;
-  double _scrollDepth = 0;
 
   @override
   void initState() {
@@ -37,17 +33,6 @@ class _ConnectScreenState extends State<ConnectScreen>
     final cp = context.read<ConnectionProvider>();
     _ctrl.text = cp.rawInput;
     _isTunnel  = cp.isTunnel;
-    // Gentle fade + rise on first appearance. Paired with the root-level
-    // zoom-through, this makes the Connect screen settle in instead of
-    // just snapping.
-    _entranceCtrl = AnimationController(
-      vsync: this, duration: AppDurations.med,
-    )..forward();
-    _entranceFade = CurvedAnimation(
-      parent: _entranceCtrl, curve: AppCurves.enter);
-    _entranceSlide = Tween<Offset>(
-      begin: const Offset(0, 0.02), end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter));
     _loadLastTunnel();
     _loadPayloadHistory();
   }
@@ -175,46 +160,26 @@ class _ConnectScreenState extends State<ConnectScreen>
         backgroundColor: Colors.transparent,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: FadeTransition(
-            opacity: _entranceFade,
-            child: SlideTransition(
-              position: _entranceSlide,
-              child: Form(
+          child: Form(
             key: _formKey,
             child: Align(
               alignment: Alignment.topCenter,
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 560),
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (n) {
-                    if (n.metrics.axis == Axis.vertical) {
-                      final d = (n.metrics.pixels * 0.06).clamp(0, 14).toDouble();
-                      if ((d - _scrollDepth).abs() > 0.5 && mounted) {
-                        setState(() => _scrollDepth = d);
-                      }
-                    }
-                    return false;
-                  },
-                  child: SingleChildScrollView(
+                child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Column(children: [
                 const SizedBox(height: 48),
-                Transform.translate(
-                  offset: Offset(0, _scrollDepth * -0.45),
-                  child: const _HeroTitle(),
-                ),
+                const _HeroTitle(),
                 const SizedBox(height: AppSpacing.xl),
 
                 if (cp.rawInput.isNotEmpty || _lastTunnelUrl != null) ...[
-                  Transform.translate(
-                    offset: Offset(0, _scrollDepth * -0.25),
-                    child: _StatusPanel(
-                      lastHost: cp.rawInput.isNotEmpty
-                          ? cp.rawInput
-                          : _lastTunnelUrl!,
-                      isTunnel: _isTunnel,
-                      ready: cp.hasToken,
-                    ),
+                  _StatusPanel(
+                    lastHost: cp.rawInput.isNotEmpty
+                        ? cp.rawInput
+                        : _lastTunnelUrl!,
+                    isTunnel: _isTunnel,
+                    ready: cp.hasToken,
                   ),
                   const SizedBox(height: AppSpacing.lg),
                 ],
@@ -281,7 +246,7 @@ class _ConnectScreenState extends State<ConnectScreen>
                   onPressed: connecting ? null : _connect,
                   loading: connecting,
                   icon: connecting ? null : Icons.rocket_launch_outlined,
-                  label: connecting ? 'Connecting…' : 'Connect',
+                  label: connecting ? 'Connectingâ€¦' : 'Connect',
                   expand: true,
                 ),
 
@@ -341,19 +306,16 @@ class _ConnectScreenState extends State<ConnectScreen>
                       TextSpan(text: 'by '),
                       TextSpan(text: 'rmux',
                         style: TextStyle(fontWeight: FontWeight.w700)),
-                      TextSpan(text: '  ·  reworked by '),
+                      TextSpan(text: '  Â·  reworked by '),
                       TextSpan(text: 'KolliasG7',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                     ],
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xxl),
-              ]),
-            ),
+                  ]),
                 ),
               ),
-            ),
-          ),
             ),
           ),
         ),
@@ -466,7 +428,7 @@ class _ConnectScreenState extends State<ConnectScreen>
     }
 
     if (!mounted) return;
-    _snack('Connecting to $ip:$port…');
+    _snack('Connecting to $ip:$portâ€¦');
     try {
       await _payloadSender.send(
         ip: ip, port: port, file: file,
@@ -476,7 +438,7 @@ class _ConnectScreenState extends State<ConnectScreen>
       ScaffoldMessenger.of(context).clearSnackBars();
 
       final fileName = file.path.split(Platform.pathSeparator).last;
-      _snack('Sending $fileName…');
+      _snack('Sending $fileNameâ€¦');
 
       await PayloadHistoryService.save(PayloadRecord(
         ip: ip, port: port,
@@ -497,13 +459,12 @@ class _ConnectScreenState extends State<ConnectScreen>
 
   @override
   void dispose() {
-    _entranceCtrl.dispose();
     _ctrl.dispose();
     super.dispose();
   }
 }
 
-// ── Widgets ────────────────────────────────────────────────────────────────
+// â”€â”€ Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /// Centered wordmark used as the top-of-screen identity.
 class _HeroTitle extends StatelessWidget {
@@ -546,7 +507,7 @@ class _HeroTitle extends StatelessWidget {
           border: Border.all(color: Bk.accent.withValues(alpha: 0.3), width: 1),
         ),
         child: const Text(
-          'PlayStation 4 · Linux Control',
+          'PlayStation 4 Â· Linux Control',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Bk.accent,
@@ -664,7 +625,7 @@ class _StatusPanel extends StatelessWidget {
               style: const TextStyle(
                 color: Bk.textSec, fontSize: 12,
                 fontWeight: FontWeight.w600)),
-            const Text('  ·  ',
+            const Text('  Â·  ',
               style: TextStyle(color: Bk.textDim, fontSize: 12)),
             Text(ready ? 'Token saved' : 'Tap Connect to sign in',
               style: const TextStyle(
@@ -685,7 +646,6 @@ class _ModeSegmented extends StatelessWidget {
   Widget build(BuildContext context) {
     const pad = 4.0;
     const height = 48.0;
-    final reduceMotion = context.watch<ConnectionProvider>().reduceMotion;
 
     return LayoutBuilder(builder: (ctx, box) {
       final segW = (box.maxWidth - pad * 2) / 2;
@@ -703,13 +663,7 @@ class _ModeSegmented extends StatelessWidget {
           children: [
           // Sliding glass thumb. Uses an eased curve and the accent for a
           // soft glow so it feels like the pill physically moves.
-          AnimatedPositioned(
-            // Smooth settle: uses a gentler curve to prevent curvature
-            // artifacts during the slide animation.
-            duration: reduceMotion
-                ? Duration.zero
-                : const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
+          Positioned(
             left: isTunnel ? segW : 0,
             top: 0,
             bottom: 0,
@@ -778,25 +732,16 @@ class _SegBtn extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: selected ? 1 : 0),
-              duration: AppDurations.med,
-              curve: AppCurves.standard,
-              builder: (_, v, __) => Icon(icon,
-                size: 16,
-                color: Color.lerp(Bk.textDim, Bk.textPri, v)),
-            ),
+            Icon(icon, size: 16, color: selected ? Bk.textPri : Bk.textDim),
             const SizedBox(width: 6),
-            AnimatedDefaultTextStyle(
-              duration: AppDurations.med,
-              curve: AppCurves.standard,
+            Text(
+              label,
               style: TextStyle(
                 color: selected ? Bk.textPri : Bk.textDim,
                 fontSize: 13,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                 letterSpacing: 0.2,
               ),
-              child: Text(label),
             ),
           ],
         ),
@@ -902,3 +847,4 @@ class _RecentPayloadTile extends StatelessWidget {
     );
   }
 }
+

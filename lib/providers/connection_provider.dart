@@ -113,7 +113,7 @@ class ConnectionProvider extends ChangeNotifier {
 
   Future<void> connect(String input) async {
     bool authRequired = false;
-    _rawInput  = input.trim();
+    _rawInput  = _normalizeInput(input.trim());
     if (!_isValidInput(_rawInput)) {
       _error = 'Invalid host or URL. Use host:port (e.g. 192.168.1.116:8765) or https://...';
       _connState = ConnState.error;
@@ -337,8 +337,32 @@ class ConnectionProvider extends ChangeNotifier {
     s.contains('.trycloudflare.com') || s.contains('.cloudflare');
 
   String _effectiveBase(String input) {
-    if (_detectTunnel(input)) return input.startsWith('http') ? input : 'https://$input';
+    if (_detectTunnel(input)) {
+      final normalized = input.startsWith('http') ? input : 'https://$input';
+      return normalized.endsWith('/') ? normalized.substring(0, normalized.length - 1) : normalized;
+    }
+    // Support local inputs like "192.168.1.10:8765/" or with a path by
+    // normalizing to host[:port] for ApiService local mode.
+    final maybe = Uri.tryParse('http://$input');
+    if (maybe != null && maybe.host.isNotEmpty) {
+      final hasPort = maybe.hasPort && maybe.port > 0;
+      return hasPort ? '${maybe.host}:${maybe.port}' : maybe.host;
+    }
     return input;
+  }
+
+  String _normalizeInput(String input) {
+    final s = input.trim();
+    if (s.isEmpty) return s;
+    // Keep tunnel URLs as full URLs, just drop a trailing slash.
+    if (_detectTunnel(s)) {
+      return s.endsWith('/') ? s.substring(0, s.length - 1) : s;
+    }
+    // For local hosts, tolerate trailing slash / extra path from paste.
+    final u = Uri.tryParse('http://$s');
+    if (u == null || u.host.isEmpty) return s;
+    if (u.hasPort && u.port > 0) return '${u.host}:${u.port}';
+    return u.host;
   }
 
   bool _isValidInput(String input) {
@@ -348,12 +372,11 @@ class ConnectionProvider extends ChangeNotifier {
       final uri = Uri.tryParse(normalized);
       return uri != null && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
     }
-    final hostPort = RegExp(r'^[a-zA-Z0-9.-]+(?::\d{1,5})?$');
-    if (!hostPort.hasMatch(input)) return false;
-    final portPart = input.contains(':') ? input.split(':').last : null;
-    if (portPart == null || portPart.isEmpty) return true;
-    final p = int.tryParse(portPart);
-    return p != null && p >= 1 && p <= 65535;
+    final localUri = Uri.tryParse('http://$input');
+    if (localUri == null || localUri.host.isEmpty) return false;
+    if (!localUri.hasPort) return true;
+    final p = localUri.port;
+    return p >= 1 && p <= 65535;
   }
 
   @override
