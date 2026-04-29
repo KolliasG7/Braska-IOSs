@@ -45,6 +45,36 @@ class AppBackground extends StatelessWidget {
             bottom: 60, left: -160,
             child: _Orb(color: Bk.bgOrbA, size: 340, opacity: 0.18),
           ),
+          // Soft vertical glass veils to mimic iOS-like refracted layers.
+          const Positioned(
+            top: -40,
+            right: -30,
+            child: _GlassVeil(
+              width: 220,
+              height: 420,
+              angleDeg: -18,
+              opacity: 0.08,
+            ),
+          ),
+          const Positioned(
+            bottom: -50,
+            left: -20,
+            child: _GlassVeil(
+              width: 260,
+              height: 360,
+              angleDeg: 14,
+              opacity: 0.06,
+            ),
+          ),
+          // Gentle atmospheric blur pass.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5),
+                child: const ColoredBox(color: Colors.transparent),
+              ),
+            ),
+          ),
           child,
         ],
       ),
@@ -68,6 +98,55 @@ class _Orb extends StatelessWidget {
             color.withValues(alpha:opacity),
             color.withValues(alpha:0),
           ]),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassVeil extends StatelessWidget {
+  const _GlassVeil({
+    required this.width,
+    required this.height,
+    required this.angleDeg,
+    required this.opacity,
+  });
+
+  final double width;
+  final double height;
+  final double angleDeg;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Transform.rotate(
+        angle: angleDeg * 3.1415926535897932 / 180,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(52),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              width: width,
+              height: height,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.white.withValues(alpha: opacity * 1.6),
+                    Colors.white.withValues(alpha: opacity),
+                    Colors.white.withValues(alpha: opacity * 0.3),
+                  ],
+                  stops: const [0.0, 0.4, 1.0],
+                ),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: opacity * 1.8),
+                  width: 1,
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

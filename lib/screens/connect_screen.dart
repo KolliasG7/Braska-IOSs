@@ -180,11 +180,17 @@ class _ConnectScreenState extends State<ConnectScreen>
               position: _entranceSlide,
               child: Form(
             key: _formKey,
-            child: SingleChildScrollView(
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Column(children: [
                 const SizedBox(height: 48),
                 const _HeroTitle(),
+                const SizedBox(height: AppSpacing.lg),
+                const _GlassTagline(),
                 const SizedBox(height: AppSpacing.xl),
 
                 if (cp.rawInput.isNotEmpty || _lastTunnelUrl != null) ...[
@@ -328,6 +334,8 @@ class _ConnectScreenState extends State<ConnectScreen>
                 ),
                 const SizedBox(height: AppSpacing.xxl),
               ]),
+            ),
+              ),
             ),
           ),
             ),
@@ -533,6 +541,28 @@ class _HeroTitle extends StatelessWidget {
         ),
       ),
     ]);
+  }
+}
+
+class _GlassTagline extends StatelessWidget {
+  const _GlassTagline();
+
+  @override
+  Widget build(BuildContext context) {
+    return const GlassPill(
+      selected: true,
+      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        'PlayStation 4 Control Surface',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Bk.textHighlight,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.35,
+        ),
+      ),
+    );
   }
 }
 
