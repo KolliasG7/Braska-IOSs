@@ -18,11 +18,13 @@ class PressScale extends StatefulWidget {
     required this.child,
     this.enabled = true,
     this.pressedScale = 0.96,
+    this.curve = Curves.easeOut,
   });
 
   final Widget child;
   final bool enabled;
   final double pressedScale;
+  final Curve curve;
 
   @override
   State<PressScale> createState() => _PressScaleState();
@@ -58,10 +60,59 @@ class _PressScaleState extends State<PressScale> {
       child: AnimatedScale(
         scale: _down ? widget.pressedScale : 1.0,
         duration: _down
-            ? const Duration(milliseconds: 120)
-            : const Duration(milliseconds: 220),
-        curve: _down ? Curves.easeOut : Curves.easeOutBack,
+            ? AppDurations.quick
+            : AppDurations.medium,
+        curve: _down ? Curves.easeOut : AppCurves.bounce,
         child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Enhanced press animation with scale and opacity
+class PressEffect extends StatefulWidget {
+  const PressEffect({
+    super.key,
+    required this.child,
+    this.enabled = true,
+    this.pressedScale = 0.94,
+    this.pressedOpacity = 0.8,
+  });
+
+  final Widget child;
+  final bool enabled;
+  final double pressedScale;
+  final double pressedOpacity;
+
+  @override
+  State<PressEffect> createState() => _PressEffectState();
+}
+
+class _PressEffectState extends State<PressEffect> {
+  bool _down = false;
+
+  void _set(bool v) {
+    if (!widget.enabled) return;
+    if (_down != v) setState(() => _down = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown:   (_) => _set(true),
+      onPointerUp:     (_) => _set(false),
+      onPointerCancel: (_) => _set(false),
+      child: AnimatedOpacity(
+        opacity: _down ? widget.pressedOpacity : 1.0,
+        duration: AppDurations.quick,
+        curve: Curves.easeOut,
+        child: AnimatedScale(
+          scale: _down ? widget.pressedScale : 1.0,
+          duration: AppDurations.quick,
+          curve: Curves.easeOut,
+          child: widget.child,
+        ),
       ),
     );
   }
@@ -77,8 +128,8 @@ class FadeThroughRoute<T> extends PageRouteBuilder<T> {
         opaque: false,
         barrierColor: Colors.transparent,
         pageBuilder: (_, __, ___) => child,
-        transitionDuration:        AppDurations.med,
-        reverseTransitionDuration: const Duration(milliseconds: 260),
+        transitionDuration:        AppDurations.medium,
+        reverseTransitionDuration: AppDurations.quick,
         transitionsBuilder: (_, anim, secondary, child) {
           final enter = CurvedAnimation(parent: anim,      curve: AppCurves.enter);
           final exit  = CurvedAnimation(parent: secondary, curve: AppCurves.exit);
@@ -98,6 +149,31 @@ class FadeThroughRoute<T> extends PageRouteBuilder<T> {
                 child: ScaleTransition(scale: scaleIn, child: child),
               ),
             ),
+          );
+        },
+      );
+}
+
+/// Enhanced slide-up route with better physics
+class SlideUpRoute<T> extends PageRouteBuilder<T> {
+  SlideUpRoute({required Widget child})
+    : super(
+        opaque: false,
+        barrierColor: Colors.transparent,
+        pageBuilder: (_, __, ___) => child,
+        transitionDuration: AppDurations.medium,
+        reverseTransitionDuration: AppDurations.fast,
+        transitionsBuilder: (_, anim, __, child) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0, 0.12),
+            end: Offset.zero,
+          ).animate(CurvedAnimation(parent: anim, curve: AppCurves.smooth));
+          final fade = Tween<double>(begin: 0.0, end: 1.0).animate(
+            CurvedAnimation(parent: anim, curve: AppCurves.enter),
+          );
+          return FadeTransition(
+            opacity: fade,
+            child: SlideTransition(position: slide, child: child),
           );
         },
       );
@@ -125,6 +201,26 @@ Widget tabBodyTransition(Widget child, Animation<double> anim) {
   );
 }
 
+/// Enhanced tab transition with subtle slide effect
+Widget tabBodyTransitionEnhanced(Widget child, Animation<double> anim) {
+  final phase = CurvedAnimation(
+    parent: anim,
+    curve: const Interval(0.5, 1.0, curve: AppCurves.smooth),
+  );
+  final scale = Tween<double>(begin: 0.98, end: 1.0).animate(phase);
+  final slide = Tween<Offset>(
+    begin: const Offset(0, 0.02),
+    end: Offset.zero,
+  ).animate(phase);
+  return FadeTransition(
+    opacity: phase,
+    child: SlideTransition(
+      position: slide,
+      child: ScaleTransition(scale: scale, child: child),
+    ),
+  );
+}
+
 /// Layout builder for [AnimatedSwitcher] that keeps the incoming child on
 /// top of the outgoing one so the cross-fade doesn't briefly expose the
 /// gradient between the two layers.
@@ -136,4 +232,114 @@ Widget stackedLayoutBuilder(Widget? currentChild, List<Widget> previousChildren)
       if (currentChild != null) currentChild,
     ],
   );
+}
+
+/// Staggered animation builder for list items
+class StaggeredAnimation extends StatelessWidget {
+  const StaggeredAnimation({
+    super.key,
+    required this.child,
+    required this.index,
+    this.totalItems = 5,
+    this.staggerDelay = const Duration(milliseconds: 50),
+  });
+
+  final Widget child;
+  final int index;
+  final int totalItems;
+  final Duration staggerDelay;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.0, end: 1.0),
+      duration: AppDurations.medium,
+      curve: AppCurves.enter,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 20 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+/// Shimmer loading effect
+class ShimmerLoading extends StatefulWidget {
+  const ShimmerLoading({
+    super.key,
+    required this.child,
+    this.baseColor = const Color(0xFF1A1D33),
+    this.highlightColor = const Color(0xFF2A2D43),
+  });
+
+  final Widget child;
+  final Color baseColor;
+  final Color highlightColor;
+
+  @override
+  State<ShimmerLoading> createState() => _ShimmerLoadingState();
+}
+
+class _ShimmerLoadingState extends State<ShimmerLoading>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(-1.0, -0.5),
+              end: Alignment(1.0, 0.5),
+              colors: [
+                widget.baseColor,
+                widget.highlightColor,
+                widget.baseColor,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+              transform: _SlidingGradientTransform(
+                slidePercent: _controller.value,
+              ),
+            ).createShader(bounds);
+          },
+          child: widget.child,
+        );
+      },
+    );
+  }
+}
+
+class _SlidingGradientTransform extends GradientTransform {
+  const _SlidingGradientTransform({required this.slidePercent});
+
+  final double slidePercent;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues(bounds.width * slidePercent, 0.0, 0.0);
+  }
 }
