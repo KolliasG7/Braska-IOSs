@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../providers/connection_provider.dart';
+import '../services/api_service.dart';
 import '../services/payload_history_service.dart';
 import '../services/payload_sender_service.dart';
 import '../services/error_formatter.dart';
@@ -291,6 +292,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                   ],
                 ),
+                if (isConnected) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  _DaemonSettingsSection(api: cp.api),
+                  const SizedBox(height: AppSpacing.xl),
+                  _CapabilitiesSection(api: cp.api),
+                  const SizedBox(height: AppSpacing.xl),
+                  _DiagnosticsSection(api: cp.api),
+                ],
                 const SizedBox(height: AppSpacing.xl),
                 _Section(
                   icon: Icons.send_outlined,
@@ -1002,6 +1011,701 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
             : const Text('Change',
                 style: TextStyle(color: Bk.accent, fontWeight: FontWeight.w700)),
         ),
+      ],
+    );
+  }
+}
+
+// ── Capabilities section ─────────────────────────────────────────────────────
+
+class _CapabilitiesSection extends StatefulWidget {
+  const _CapabilitiesSection({required this.api});
+  final ApiService? api;
+
+  @override State<_CapabilitiesSection> createState() => _CapabilitiesSectionState();
+}
+
+class _CapabilitiesSectionState extends State<_CapabilitiesSection> {
+  Map<String, dynamic>? _caps;
+  bool _loading = true;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.api == null) return;
+    setState(() { _loading = true; _err = null; });
+    try {
+      final c = await widget.api!.getCapabilities();
+      if (!mounted) return;
+      setState(() {
+        _caps = c;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _err = e.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const _Section(
+        icon: Icons.extension_outlined,
+        title: 'Capabilities',
+        content: Center(
+          child: SizedBox(
+            width: 20, height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2, color: Bk.accent),
+          ),
+        ),
+      );
+    }
+
+    if (_err != null) {
+      return _Section(
+        icon: Icons.extension_outlined,
+        title: 'Capabilities',
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_err!,
+              style: const TextStyle(color: Bk.danger, fontSize: 12)),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: _load,
+              child: const Text('Retry',
+                style: TextStyle(color: Bk.accent, fontSize: 12)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final c = _caps!;
+    return _Section(
+      icon: Icons.extension_outlined,
+      title: 'Capabilities',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CapRow(
+            label: 'Fan',
+            available: _bool(c['fan']?['available']),
+            write: _bool(c['fan']?['write']),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CapRow(
+            label: 'LED',
+            available: _bool(c['led']?['available']),
+            write: _bool(c['led']?['write']),
+            extra: _bool(c['led']?['thermal_mode']) ? 'Thermal mode' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CapRow(
+            label: 'GPU',
+            available: _bool(c['gpu']?['available']),
+            write: _bool(c['gpu']?['write']),
+            extra: _bool(c['gpu']?['supported_hardware']) ? 'Supported hardware' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CapRow(
+            label: 'HDMI',
+            available: _bool(c['hdmi']?['available']),
+            write: _bool(c['hdmi']?['write']),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CapRow(
+            label: 'System',
+            available: true,
+            write: false,
+            extra: 'Processes: ${_bool(c['system']?['processes']) ? 'Yes' : 'No'}, '
+                   'Power: ${_bool(c['system']?['power']) ? 'Yes' : 'No'}',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CapRow(
+            label: 'Files',
+            available: _bool(c['files']?['available']),
+            write: false,
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _bool(dynamic v) => v == true;
+}
+
+class _CapRow extends StatelessWidget {
+  const _CapRow({
+    required this.label,
+    required this.available,
+    required this.write,
+    this.extra,
+  });
+
+  final String label;
+  final bool available;
+  final bool write;
+  final String? extra;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 8, height: 8,
+          margin: const EdgeInsets.only(top: 5),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: available ? Bk.success : Bk.textDim,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                style: TextStyle(
+                  color: available ? Bk.textPri : Bk.textDim,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+              if (extra != null)
+                Text(extra!,
+                  style: const TextStyle(
+                    color: Bk.textDim, fontSize: 10)),
+            ],
+          ),
+        ),
+        if (available)
+          Container(
+            padding: const EdgeInsets.symmetric(
+                horizontal: 6, vertical: 2),
+            decoration: BoxDecoration(
+              color: write
+                  ? Bk.accent.withValues(alpha: 0.15)
+                  : Bk.textDim.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+              border: Border.all(
+                color: write
+                    ? Bk.accent.withValues(alpha: 0.4)
+                    : Bk.textDim.withValues(alpha: 0.3),
+                width: 1,
+              ),
+            ),
+            child: Text(
+              write ? 'RW' : 'RO',
+              style: TextStyle(
+                color: write ? Bk.accent : Bk.textDim,
+                fontSize: 10,
+                fontWeight: FontWeight.w700),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Diagnostics section ─────────────────────────────────────────────────────
+
+class _DiagnosticsSection extends StatefulWidget {
+  const _DiagnosticsSection({required this.api});
+  final ApiService? api;
+
+  @override State<_DiagnosticsSection> createState() => _DiagnosticsSectionState();
+}
+
+class _DiagnosticsSectionState extends State<_DiagnosticsSection> {
+  Map<String, dynamic>? _diag;
+  bool _loading = true;
+  String? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (widget.api == null) return;
+    setState(() { _loading = true; _err = null; });
+    try {
+      final d = await widget.api!.getDiagnostics();
+      if (!mounted) return;
+      setState(() {
+        _diag = d;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _err = e.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const _Section(
+        icon: Icons.bug_report_outlined,
+        title: 'Diagnostics',
+        content: Center(
+          child: SizedBox(
+            width: 20, height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2, color: Bk.accent),
+          ),
+        ),
+      );
+    }
+
+    if (_err != null) {
+      return _Section(
+        icon: Icons.bug_report_outlined,
+        title: 'Diagnostics',
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_err!,
+              style: const TextStyle(color: Bk.danger, fontSize: 12)),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: _load,
+              child: const Text('Retry',
+                style: TextStyle(color: Bk.accent, fontSize: 12)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final d = _diag!;
+    return _Section(
+      icon: Icons.bug_report_outlined,
+      title: 'Diagnostics',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _DiagRow(label: 'Status', value: d['status'] as String? ?? 'Unknown'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Peer IP', value: d['peer_ip'] as String? ?? 'Unknown'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Auth required', value: _bool(d['auth_required']) ? 'Yes' : 'No'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Remote enabled', value: _bool(d['remote_enabled']) ? 'Yes' : 'No'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Remote port', value: '${d['remote_port'] ?? 'N/A'}'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Kernel', value: d['kernel'] as String? ?? 'Unavailable'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Hardware variant', value: d['hardware_variant'] as String? ?? 'Unknown'),
+          const SizedBox(height: AppSpacing.md),
+          const Divider(color: Bk.glassBorder),
+          const SizedBox(height: AppSpacing.md),
+          const Text('Component status',
+            style: TextStyle(
+              color: Bk.textSec, fontSize: 11,
+              fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'Fan',
+            available: _bool(d['fan']?['available']),
+            message: d['fan']?['message'] as String?,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'LED',
+            available: _bool(d['led']?['available']),
+            message: d['led']?['message'] as String?,
+            extra: _bool(d['led']?['thermal_mode_supported']) ? 'Thermal mode supported' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'GPU',
+            available: _bool(d['gpu']?['available']),
+            message: d['gpu']?['message'] as String?,
+            warning: d['gpu']?['warning'] as String?,
+            extra: _bool(d['gpu']?['supported_hardware']) ? 'Supported hardware' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'HDMI',
+            available: _bool(d['hdmi']?['available']),
+            message: d['hdmi']?['message'] as String?,
+          ),
+        ],
+      ),
+    );
+  }
+
+  bool _bool(dynamic v) => v == true;
+}
+
+class _DiagRow extends StatelessWidget {
+  const _DiagRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(label,
+            style: const TextStyle(
+              color: Bk.textDim, fontSize: 12)),
+        ),
+        Text(value,
+          style: const TextStyle(
+            color: Bk.textPri, fontSize: 12,
+            fontFamily: 'monospace', fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+}
+
+class _CompStatus extends StatelessWidget {
+  const _CompStatus({
+    required this.label,
+    required this.available,
+    this.message,
+    this.warning,
+    this.extra,
+  });
+
+  final String label;
+  final bool available;
+  final String? message;
+  final String? warning;
+  final String? extra;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 8, height: 8,
+              margin: const EdgeInsets.only(top: 5),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: available ? Bk.success : Bk.danger,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                    style: TextStyle(
+                      color: available ? Bk.textPri : Bk.textDim,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600)),
+                  if (message != null && message!.isNotEmpty)
+                    Text(message!,
+                      style: const TextStyle(
+                        color: Bk.textDim, fontSize: 10)),
+                  if (extra != null)
+                    Text(extra!,
+                      style: const TextStyle(
+                        color: Bk.accent, fontSize: 10)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (warning != null && warning!.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.only(left: 18),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.warning_amber_outlined,
+                  color: Bk.warn, size: 12),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(warning!,
+                    style: const TextStyle(
+                      color: Bk.warn, fontSize: 10)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ── Daemon settings section ─────────────────────────────────────────────────
+
+class _DaemonSettingsSection extends StatefulWidget {
+  const _DaemonSettingsSection({required this.api});
+  final ApiService? api;
+
+  @override State<_DaemonSettingsSection> createState() => _DaemonSettingsSectionState();
+}
+
+class _DaemonSettingsSectionState extends State<_DaemonSettingsSection> {
+  Map<String, dynamic>? _settings;
+  bool _loading = true;
+  bool _saving = false;
+  String? _err;
+
+  final _pollIntervalCtrl = TextEditingController();
+  final _fanDebounceCtrl = TextEditingController();
+  final _remotePortCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _pollIntervalCtrl.dispose();
+    _fanDebounceCtrl.dispose();
+    _remotePortCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    if (widget.api == null) return;
+    setState(() { _loading = true; _err = null; });
+    try {
+      final s = await widget.api!.getSettings();
+      if (!mounted) return;
+      setState(() {
+        _settings = s;
+        _loading = false;
+        _pollIntervalCtrl.text = (s['poll_interval_ms'] as int? ?? 1000).toString();
+        _fanDebounceCtrl.text = (s['fan_debounce_ms'] as int? ?? 2000).toString();
+        _remotePortCtrl.text = (s['remote_port'] as int? ?? 9023).toString();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _err = e.toString();
+      });
+    }
+  }
+
+  Future<void> _save() async {
+    if (widget.api == null) return;
+    setState(() { _saving = true; _err = null; });
+    try {
+      final pollInterval = int.tryParse(_pollIntervalCtrl.text);
+      final fanDebounce = int.tryParse(_fanDebounceCtrl.text);
+      final remotePort = int.tryParse(_remotePortCtrl.text);
+
+      if (pollInterval == null || pollInterval < 100) {
+        setState(() { _saving = false; _err = 'Poll interval must be at least 100ms'; });
+        return;
+      }
+      if (fanDebounce == null || fanDebounce < 0) {
+        setState(() { _saving = false; _err = 'Fan debounce must be non-negative'; });
+        return;
+      }
+      if (remotePort == null || remotePort < 1 || remotePort > 65535) {
+        setState(() { _saving = false; _err = 'Port must be between 1 and 65535'; });
+        return;
+      }
+
+      await widget.api!.updateSettings(
+        pollIntervalMs: pollInterval,
+        fanDebounceMs: fanDebounce,
+        remotePort: remotePort,
+      );
+      if (!mounted) return;
+      await _load();
+      if (!mounted) return;
+      setState(() { _saving = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _err = e.toString();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const _Section(
+        icon: Icons.settings_applications_outlined,
+        title: 'Daemon Settings',
+        content: Center(
+          child: SizedBox(
+            width: 20, height: 20,
+            child: CircularProgressIndicator(
+              strokeWidth: 2, color: Bk.accent),
+          ),
+        ),
+      );
+    }
+
+    if (_err != null) {
+      return _Section(
+        icon: Icons.settings_applications_outlined,
+        title: 'Daemon Settings',
+        content: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_err!,
+              style: const TextStyle(color: Bk.danger, fontSize: 12)),
+            const SizedBox(height: AppSpacing.sm),
+            TextButton(
+              onPressed: _load,
+              child: const Text('Retry',
+                style: TextStyle(color: Bk.accent, fontSize: 12)),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final s = _settings!;
+    return _Section(
+      icon: Icons.settings_applications_outlined,
+      title: 'Daemon Settings',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _SettingRow(
+            label: 'Poll interval',
+            value: '${s['poll_interval_ms']} ms',
+            sub: 'Telemetry update frequency',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingRow(
+            label: 'Fan debounce',
+            value: '${s['fan_debounce_ms']} ms',
+            sub: 'Fan control delay',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingRow(
+            label: 'Remote port',
+            value: '${s['remote_port']}',
+            sub: 'API server port',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingRow(
+            label: 'Remote enabled',
+            value: s['remote_enabled'] == true ? 'Yes' : 'No',
+            sub: 'Remote API access',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _pollIntervalCtrl,
+                style: T.mono,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: glassInputDecoration(
+                  hintText: 'Poll interval (ms)',
+                  dense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _fanDebounceCtrl,
+                style: T.mono,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: glassInputDecoration(
+                  hintText: 'Fan debounce (ms)',
+                  dense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _remotePortCtrl,
+                style: T.mono,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: glassInputDecoration(
+                  hintText: 'Port',
+                  dense: true,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: _saving ? 'Saving…' : 'Apply settings',
+            icon: Icons.save_outlined,
+            loading: _saving,
+            onPressed: _saving ? null : _save,
+            expand: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
+
+  final String label;
+  final String value;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                style: const TextStyle(
+                  color: Bk.textPri, fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+              Text(sub,
+                style: const TextStyle(
+                  color: Bk.textDim, fontSize: 10)),
+            ],
+          ),
+        ),
+        Text(value,
+          style: const TextStyle(
+            color: Bk.accent, fontSize: 13,
+            fontFamily: 'monospace', fontWeight: FontWeight.w700)),
       ],
     );
   }

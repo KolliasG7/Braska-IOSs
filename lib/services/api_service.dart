@@ -400,7 +400,7 @@ class ApiService {
     if (path.isEmpty || path.contains('\x00')) {
       throw ApiException(400, 'Invalid file path');
     }
-    
+
     return _retry.execute(
       () async {
         final encoded = Uri.encodeQueryComponent(path);
@@ -412,10 +412,104 @@ class ApiService {
     );
   }
 
+  // ── Settings ───────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getSettings() async {
+    return _retry.execute(
+      () async {
+        final r = await http.get(_u('/api/settings'), headers: _h)
+            .timeout(const Duration(seconds: 8));
+        _chk(r);
+        return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
+  Future<Map<String, dynamic>> updateSettings({
+    bool? oledBlackMode,
+    int? pollIntervalMs,
+    int? fanDebounceMs,
+    bool? remoteEnabled,
+    int? remotePort,
+  }) async {
+    return _retry.execute(
+      () async {
+        final body = <String, dynamic>{};
+        if (oledBlackMode != null) body['oled_black_mode'] = oledBlackMode;
+        if (pollIntervalMs != null) body['poll_interval_ms'] = pollIntervalMs;
+        if (fanDebounceMs != null) body['fan_debounce_ms'] = fanDebounceMs;
+        if (remoteEnabled != null) body['remote_enabled'] = remoteEnabled;
+        if (remotePort != null) body['remote_port'] = remotePort;
+
+        final r = await http.post(_u('/api/settings'),
+          headers: _h, body: jsonEncode(body),
+        ).timeout(const Duration(seconds: 10));
+        _chk(r);
+        return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
+  // ── Capabilities ────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getCapabilities() async {
+    return _retry.execute(
+      () async {
+        final r = await http.get(_u('/api/capabilities'), headers: _h)
+            .timeout(const Duration(seconds: 8));
+        _chk(r);
+        return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
+  // ── Diagnostics ─────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getDiagnostics() async {
+    return _retry.execute(
+      () async {
+        final r = await http.get(_u('/api/diagnostics'), headers: _h)
+            .timeout(const Duration(seconds: 8));
+        _chk(r);
+        return jsonDecode(r.body) as Map<String, dynamic>? ?? {};
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
+  // ── GPU ─────────────────────────────────────────────────────────────────
+
+  Future<void> setGpuManual(bool enabled) async {
+    return _retry.execute(
+      () async {
+        final r = await http.post(_u('/api/gpu/manual'),
+          headers: _h, body: jsonEncode({'enabled': enabled}),
+        ).timeout(const Duration(seconds: 10));
+        _chk(r);
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
+  Future<void> setGpuLevel(int level) async {
+    return _retry.execute(
+      () async {
+        final r = await http.post(_u('/api/gpu/level'),
+          headers: _h, body: jsonEncode({'level': level}),
+        ).timeout(const Duration(seconds: 10));
+        _chk(r);
+      },
+      retryIf: RetryConditions.isConnectionError,
+    );
+  }
+
   void _chk(http.Response r) {
     if (r.statusCode >= 400) {
       String d = r.body;
-      try { 
+      try {
         final decoded = jsonDecode(r.body);
         d = (decoded is Map ? decoded['detail'] : null) ?? d;
       } catch (_) {}

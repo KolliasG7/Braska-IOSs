@@ -12,6 +12,7 @@ import '../widgets/motion.dart';
 import '../widgets/overview_widgets.dart';
 import '../widgets/fan_control.dart';
 import '../widgets/led_panel.dart';
+import '../widgets/gpu_control.dart';
 import '../widgets/power_controls.dart';
 import 'processes_screen.dart';
 import 'terminal_screen.dart';
@@ -470,6 +471,7 @@ class _ControlTab extends StatelessWidget {
       if (frame?.fan != null)
         FanControlCard(api: api!, currentThreshold: frame!.fan!.thresholdC),
       LedPanelCard(api: api!),
+      GpuControlCard(api: api!),
     ];
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(
