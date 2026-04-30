@@ -1,4 +1,4 @@
-// lib/providers/connection_provider.dart
+﻿// lib/providers/connection_provider.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -288,7 +288,7 @@ class ConnectionProvider extends ChangeNotifier {
   /// Rotates the remote password on the backend and persists the fresh
   /// token the backend emits, so the session keeps working without a
   /// re-login. Throws on failure (wrong current password, network,
-  /// server error) — the Settings screen surfaces the message.
+  /// server error) â€” the Settings screen surfaces the message.
   Future<void> rotatePassword({
     required String currentPassword,
     required String newPassword,
@@ -334,10 +334,10 @@ class ConnectionProvider extends ChangeNotifier {
     if (net != null) {
       final txMbps = (net.bytesSentS / 1024 / 1024).toStringAsFixed(1);
       final rxMbps = (net.bytesRecvS / 1024 / 1024).toStringAsFixed(1);
-      netStr = '  ▼${rxMbps}M/s ▲${txMbps}M/s';
+      netStr = '  down ${rxMbps}M/s up ${txMbps}M/s';
     }
-    final body = 'CPU ${cpu.toStringAsFixed(0)}% • RAM ${ram.toStringAsFixed(0)}%\n'
-                '${temp.toStringAsFixed(0)}°C • ${rpm == 0 ? "Fan off" : "$rpm RPM"} • Up ${f.uptimeFormatted}\n'
+    final body = 'CPU ${cpu.toStringAsFixed(0)}% | RAM ${ram.toStringAsFixed(0)}%\n'
+                '${temp.toStringAsFixed(0)}C | ${rpm == 0 ? "Fan off" : "$rpm RPM"} | Up ${f.uptimeFormatted}\n'
                 'Net ${net?.iface ?? "lo"}$netStr';
     if (body != _lastNotifBody) {
       _lastNotifBody = body;
@@ -346,8 +346,8 @@ class ConnectionProvider extends ChangeNotifier {
     }
     if (temp >= 90 && !_critNotifSent) {
       _critNotifSent = true;
-      NotificationService.showAlert(title: '⚠️ PS4 Temp Critical',
-        body: 'APU temperature: ${temp.toStringAsFixed(0)}°C');
+      NotificationService.showAlert(title: 'PS4 Temp Critical',
+        body: 'APU temperature: ${temp.toStringAsFixed(0)}C');
     } else if (temp < 85) {
       _critNotifSent = false;
     }

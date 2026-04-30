@@ -7,7 +7,8 @@ Status key: `todo` | `in_progress` | `done` | `blocked`
 |---|---|---|
 | App boot on Windows | done | `windows/` target scaffolded |
 | Notification init safety | done | Windows init + guard added |
-| Encoding/text sanity | in_progress | mojibake cleanup pass ongoing |
+| Encoding/text sanity | done | Connect + notification strings sanitized |
+| Windows CI artifact build | done | Added `windows-build.yml` lane |
 
 ## Connect Screen
 | Feature | Status | Notes |

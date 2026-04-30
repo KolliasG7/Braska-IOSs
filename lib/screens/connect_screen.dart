@@ -1,4 +1,4 @@
-﻿// lib/screens/connect_screen.dart â€” Strawberry Manager landing
+﻿// lib/screens/connect_screen.dart - Strawberry Manager landing
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -463,7 +463,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
   }
 }
 
-// â”€â”€ Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Widgets
 
 /// Centered wordmark used as the top-of-screen identity.
 class _HeroTitle extends StatelessWidget {
