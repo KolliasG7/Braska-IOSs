@@ -15,8 +15,7 @@ class ConnectScreen extends StatefulWidget {
   @override State<ConnectScreen> createState() => _ConnectScreenState();
 }
 
-class _ConnectScreenState extends State<ConnectScreen>
-    with TickerProviderStateMixin {
+class _ConnectScreenState extends State<ConnectScreen> {
   final _ctrl    = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isTunnel = false;
@@ -25,10 +24,6 @@ class _ConnectScreenState extends State<ConnectScreen>
 
   List<PayloadRecord> _payloadHistory = [];
   final _payloadSender = const PayloadSenderService();
-  late final AnimationController _entranceCtrl;
-  late final Animation<double> _entranceFade;
-  late final Animation<Offset> _entranceSlide;
-  late final AnimationController _heroCtrl;
 
 
   @override
@@ -37,19 +32,6 @@ class _ConnectScreenState extends State<ConnectScreen>
     final cp = context.read<ConnectionProvider>();
     _ctrl.text = cp.rawInput;
     _isTunnel  = cp.isTunnel;
-    _entranceCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 560),
-    )..forward();
-    _entranceFade = CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter);
-    _entranceSlide = Tween<Offset>(
-      begin: const Offset(0, 0.03),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter));
-    _heroCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 9),
-    )..repeat(reverse: true);
     _loadLastTunnel();
     _loadPayloadHistory();
   }
@@ -177,21 +159,17 @@ class _ConnectScreenState extends State<ConnectScreen>
         backgroundColor: Colors.transparent,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: FadeTransition(
-            opacity: _entranceFade,
-            child: SlideTransition(
-              position: _entranceSlide,
-              child: Form(
-                key: _formKey,
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    child: SingleChildScrollView(
+          child: Form(
+            key: _formKey,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Column(children: [
                 const SizedBox(height: 48),
-                _LiquidHero(ctrl: _heroCtrl),
+                const _HeroTitle(),
                 const SizedBox(height: AppSpacing.xl),
 
                 if (cp.rawInput.isNotEmpty || _lastTunnelUrl != null) ...[
@@ -267,7 +245,7 @@ class _ConnectScreenState extends State<ConnectScreen>
                   onPressed: connecting ? null : _connect,
                   loading: connecting,
                   icon: connecting ? null : Icons.rocket_launch_outlined,
-                  label: connecting ? 'Connectingâ€¦' : 'Connect',
+                  label: connecting ? 'Connecting...' : 'Connect',
                   expand: true,
                 ),
 
@@ -327,7 +305,7 @@ class _ConnectScreenState extends State<ConnectScreen>
                       TextSpan(text: 'by '),
                       TextSpan(text: 'rmux',
                         style: TextStyle(fontWeight: FontWeight.w700)),
-                      TextSpan(text: '  Â·  reworked by '),
+                      TextSpan(text: '  -  reworked by '),
                       TextSpan(text: 'KolliasG7',
                         style: TextStyle(fontWeight: FontWeight.w700)),
                     ],
@@ -336,8 +314,6 @@ class _ConnectScreenState extends State<ConnectScreen>
                 const SizedBox(height: AppSpacing.xxl),
                   ]),
                 ),
-              ),
-            ),
               ),
             ),
           ),
@@ -451,7 +427,7 @@ class _ConnectScreenState extends State<ConnectScreen>
     }
 
     if (!mounted) return;
-    _snack('Connecting to $ip:$portâ€¦');
+    _snack('Connecting to $ip:$port...');
     try {
       await _payloadSender.send(
         ip: ip, port: port, file: file,
@@ -461,7 +437,7 @@ class _ConnectScreenState extends State<ConnectScreen>
       ScaffoldMessenger.of(context).clearSnackBars();
 
       final fileName = file.path.split(Platform.pathSeparator).last;
-      _snack('Sending $fileNameâ€¦');
+      _snack('Sending $fileName...');
 
       await PayloadHistoryService.save(PayloadRecord(
         ip: ip, port: port,
@@ -482,56 +458,12 @@ class _ConnectScreenState extends State<ConnectScreen>
 
   @override
   void dispose() {
-    _entranceCtrl.dispose();
-    _heroCtrl.dispose();
     _ctrl.dispose();
     super.dispose();
   }
 }
 
 // â”€â”€ Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _LiquidHero extends StatelessWidget {
-  const _LiquidHero({required this.ctrl});
-  final AnimationController ctrl;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: ctrl,
-      builder: (_, __) {
-        final t = ctrl.value;
-        final dx = (t - 0.5) * 18;
-        final dy = (0.5 - t).abs() * 8;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Transform.translate(
-              offset: Offset(dx, dy),
-              child: Container(
-                width: 250,
-                height: 96,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(40),
-                  gradient: LinearGradient(
-                    colors: [
-                      Bk.accent.withValues(alpha: 0.12),
-                      const Color(0xFFA5B4FC).withValues(alpha: 0.1),
-                      Colors.transparent,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                ),
-              ),
-            ),
-            const _HeroTitle(),
-          ],
-        );
-      },
-    );
-  }
-}
 
 /// Centered wordmark used as the top-of-screen identity.
 class _HeroTitle extends StatelessWidget {
@@ -574,7 +506,7 @@ class _HeroTitle extends StatelessWidget {
           border: Border.all(color: Bk.accent.withValues(alpha: 0.3), width: 1),
         ),
         child: const Text(
-          'PlayStation 4 Â· Linux Control',
+          'PlayStation 4 - Linux Control',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: Bk.accent,
@@ -692,7 +624,7 @@ class _StatusPanel extends StatelessWidget {
               style: const TextStyle(
                 color: Bk.textSec, fontSize: 12,
                 fontWeight: FontWeight.w600)),
-            const Text('  Â·  ',
+            const Text('  -  ',
               style: TextStyle(color: Bk.textDim, fontSize: 12)),
             Text(ready ? 'Token saved' : 'Tap Connect to sign in',
               style: const TextStyle(
