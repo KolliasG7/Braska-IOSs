@@ -1,14 +1,6 @@
 name: Build iOS IPA
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "lib/**"
-      - "ios/**"
-      - "pubspec.yaml"
-      - "pubspec.lock"
-      - ".github/workflows/build-simple.yml"
   workflow_dispatch:
     inputs:
       build_mode:

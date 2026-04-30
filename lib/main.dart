@@ -41,9 +41,15 @@ class _Root extends StatelessWidget {
   const _Root();
   @override
   Widget build(BuildContext context) {
-    final cp = context.watch<ConnectionProvider>();
+    final cp = context.read<ConnectionProvider>();
+    final connState = context.select<ConnectionProvider, ConnState>(
+      (cp) => cp.connState,
+    );
+    final rawInput = context.select<ConnectionProvider, String>(
+      (cp) => cp.rawInput,
+    );
 
-    if (cp.connState == ConnState.idle && cp.rawInput.isNotEmpty) {
+    if (connState == ConnState.idle && rawInput.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) => cp.connect(cp.rawInput));
     }
 
@@ -87,7 +93,7 @@ class _Root extends StatelessWidget {
           ),
         );
       },
-      child: switch (cp.connState) {
+      child: switch (connState) {
         ConnState.connected =>
           const DashboardScreen(key: ValueKey('dash')),
         // needsAuth shows ConnectScreen which handles the password dialog

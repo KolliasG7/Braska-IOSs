@@ -25,6 +25,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   List<PayloadRecord> _history = [];
   File? _selectedFile;
+  double? _selectedFileSizeKb;
   bool  _sending = false;
   bool  _disconnecting = false;
   bool  _clearingToken = false;
@@ -68,7 +69,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _pickFile() async {
     final result = await FilePicker.platform.pickFiles();
     if (result == null || result.files.single.path == null) return;
-    setState(() => _selectedFile = File(result.files.single.path!));
+    final file = File(result.files.single.path!);
+    double? sizeKb;
+    try {
+      sizeKb = (await file.length()) / 1024;
+    } catch (_) {
+      sizeKb = null;
+    }
+    setState(() {
+      _selectedFile = file;
+      _selectedFileSizeKb = sizeKb;
+    });
   }
 
   void _snack(String msg, {bool danger = false, bool success = false}) {
@@ -164,6 +175,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) setState(() => _sending = false);
   }
 
+  Future<void> _applyHistoryRecord(PayloadRecord rec) async {
+    _ipCtrl.text = rec.ip;
+    _portCtrl.text = rec.port.toString();
+    final file = File(rec.filePath);
+    final exists = await file.exists();
+    if (!mounted) return;
+    if (!exists) {
+      setState(() {
+        _selectedFile = null;
+        _selectedFileSizeKb = null;
+      });
+      return;
+    }
+    double? sizeKb;
+    try {
+      sizeKb = (await file.length()) / 1024;
+    } catch (_) {
+      sizeKb = null;
+    }
+    if (!mounted) return;
+    setState(() {
+      _selectedFile = file;
+      _selectedFileSizeKb = sizeKb;
+    });
+  }
+
   Future<void> _doDisconnect() async {
     HapticFeedback.mediumImpact();
     setState(() => _disconnecting = true);
@@ -197,7 +234,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final cp = context.watch<ConnectionProvider>();
+    final showCpuGraph = context.select<ConnectionProvider, bool>((p) => p.showCpuGraph);
+    final showRamGraph = context.select<ConnectionProvider, bool>((p) => p.showRamGraph);
+    final showThermalGraph = context.select<ConnectionProvider, bool>((p) => p.showThermalGraph);
+    final showNotifications = context.select<ConnectionProvider, bool>((p) => p.showNotifications);
+    final reduceMotion = context.select<ConnectionProvider, bool>((p) => p.reduceMotion);
+    final isConnected = context.select<ConnectionProvider, bool>((p) => p.isConnected);
+    final hasToken = context.select<ConnectionProvider, bool>((p) => p.hasToken);
+    final cp = context.read<ConnectionProvider>();
+
     return AppBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
@@ -208,7 +253,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl, AppSpacing.md,
                   AppSpacing.xl, AppSpacing.xxxl),
-              child: Column(children: [
+              child: RepaintBoundary(
+                child: Column(children: [
                 _Section(
                   icon: Icons.visibility_outlined,
                   title: 'Display',
@@ -216,31 +262,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     _ToggleRow(
                       label: 'CPU graph',
                       sub: 'Show processor usage sparkline',
-                      value: cp.showCpuGraph,
+                      value: showCpuGraph,
                       onChanged: cp.toggleCpuGraph,
                     ),
                     _ToggleRow(
                       label: 'RAM graph',
                       sub: 'Show memory usage sparkline',
-                      value: cp.showRamGraph,
+                      value: showRamGraph,
                       onChanged: cp.toggleRamGraph,
                     ),
                     _ToggleRow(
                       label: 'Thermal graph',
                       sub: 'Show temperature sparkline',
-                      value: cp.showThermalGraph,
+                      value: showThermalGraph,
                       onChanged: cp.toggleThermalGraph,
                     ),
                     _ToggleRow(
                       label: 'Status notifications',
                       sub: 'Enable system notifications',
-                      value: cp.showNotifications,
+                      value: showNotifications,
                       onChanged: cp.toggleNotifications,
                     ),
                     _ToggleRow(
                       label: 'Reduce motion',
                       sub: 'Minimize animations',
-                      value: cp.reduceMotion,
+                      value: reduceMotion,
                       onChanged: cp.toggleReduceMotion,
                     ),
                   ],
@@ -281,6 +327,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: AppSpacing.md),
                     _FilePickerRow(
                       file: _selectedFile,
+                      sizeKb: _selectedFileSizeKb,
                       onTap: _pickFile,
                     ),
                     const SizedBox(height: AppSpacing.md),
@@ -321,20 +368,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           child: _HistoryTile(
                             record: _history[i],
                             onTap: () {
+                              final rec = _history[i];
                               HapticFeedback.selectionClick();
-                              _ipCtrl.text = _history[i].ip;
-                              _portCtrl.text = _history[i].port.toString();
-                              setState(() => _selectedFile =
-                                  File(_history[i].filePath).existsSync()
-                                      ? File(_history[i].filePath)
-                                      : null);
+                              _applyHistoryRecord(rec);
                             },
                           ),
                         ),
                     ]),
                   ),
                 ],
-                if (cp.isConnected) ...[
+                if (isConnected) ...[
                   const SizedBox(height: AppSpacing.xl),
                   _Section(
                     icon: Icons.link_outlined,
@@ -349,7 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? null : _doDisconnect,
                         expand: true,
                       ),
-                      if (cp.hasToken) ...[
+                      if (hasToken) ...[
                         const SizedBox(height: AppSpacing.md),
                         AppButton(
                           label: 'Clear saved token',
@@ -364,7 +407,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ]),
                   ),
-                  if (cp.hasToken) ...[
+                  if (hasToken) ...[
                     const SizedBox(height: AppSpacing.xl),
                     _Section(
                       icon: Icons.lock_outline,
@@ -401,7 +444,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
                 const SizedBox(height: AppSpacing.xxl),
                 const _AboutFooter(),
-              ]),
+              ])),
             )),
           ]),
         ),
@@ -537,7 +580,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      style: GlassStyle.raised,
+      style: GlassStyle.normal,
       padding: const EdgeInsets.fromLTRB(
           AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
       child: Column(
@@ -561,13 +604,6 @@ class _Section extends StatelessWidget {
                   color: Bk.accent.withValues(alpha: 0.5),
                   width: 1.5,
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Bk.accent.withValues(alpha: 0.2),
-                    blurRadius: 8,
-                    spreadRadius: 1,
-                  ),
-                ],
               ),
               child: Icon(icon, color: Bk.accent, size: 20),
             ),
@@ -690,8 +726,13 @@ class _ToggleRow extends StatelessWidget {
 // ── File picker row ───────────────────────────────────────────────────────
 
 class _FilePickerRow extends StatelessWidget {
-  const _FilePickerRow({required this.file, required this.onTap});
+  const _FilePickerRow({
+    required this.file,
+    required this.sizeKb,
+    required this.onTap,
+  });
   final File? file;
+  final double? sizeKb;
   final VoidCallback onTap;
 
   @override
@@ -739,7 +780,7 @@ class _FilePickerRow extends StatelessWidget {
             const SizedBox(height: 2),
             Text(name == null
                 ? 'Tap to browse'
-                : '${(file!.statSync().size / 1024).toStringAsFixed(1)} KB',
+                : sizeKb == null ? 'File selected' : '${sizeKb!.toStringAsFixed(1)} KB',
               style: const TextStyle(color: Bk.textDim, fontSize: 11)),
           ],
         )),
