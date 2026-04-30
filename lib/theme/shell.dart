@@ -66,15 +66,6 @@ class AppBackground extends StatelessWidget {
               opacity: 0.06,
             ),
           ),
-          // Gentle atmospheric blur pass.
-          Positioned.fill(
-            child: IgnorePointer(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 2.5, sigmaY: 2.5),
-                child: const ColoredBox(color: Colors.transparent),
-              ),
-            ),
-          ),
           child,
         ],
       ),
@@ -124,26 +115,23 @@ class _GlassVeil extends StatelessWidget {
         angle: angleDeg * 3.1415926535897932 / 180,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(52),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              width: width,
-              height: height,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.white.withValues(alpha: opacity * 1.6),
-                    Colors.white.withValues(alpha: opacity),
-                    Colors.white.withValues(alpha: opacity * 0.3),
-                  ],
-                  stops: const [0.0, 0.4, 1.0],
-                ),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: opacity * 1.8),
-                  width: 1,
-                ),
+          child: Container(
+            width: width,
+            height: height,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.white.withValues(alpha: opacity * 1.6),
+                  Colors.white.withValues(alpha: opacity),
+                  Colors.white.withValues(alpha: opacity * 0.3),
+                ],
+                stops: const [0.0, 0.4, 1.0],
+              ),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: opacity * 1.8),
+                width: 1,
               ),
             ),
           ),
@@ -190,7 +178,7 @@ class GlassBottomNav extends StatelessWidget {
         child: ClipRRect(
         borderRadius: BorderRadius.circular(AppRadii.pill),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: Stack(
             children: [
               Container(

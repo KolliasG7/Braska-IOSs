@@ -168,7 +168,7 @@ class GlassCard extends StatelessWidget {
     Widget content = ClipRRect(
       borderRadius: borderRadius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: body,
       ),
     );
@@ -244,7 +244,7 @@ class GlassPill extends StatelessWidget {
     Widget inner = ClipRRect(
       borderRadius: borderRadius,
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Stack(
           children: [
             Container(
@@ -295,7 +295,7 @@ class GlassSheet extends StatelessWidget {
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
         child: Container(
           padding: padding,
           decoration: const BoxDecoration(

@@ -403,8 +403,8 @@ class _MonitorTab extends StatelessWidget {
       if (frame!.net.isNotEmpty) NetworkCard(netList: frame!.net),
       if (frame!.disk.isNotEmpty) DiskCard(disks: frame!.disk),
       if (api != null) TopProcessesCard(api: api!),
-      IntrinsicHeight(child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: UptimeChip(uptime: frame!.uptimeFormatted)),
           if (frame!.tunnel != null) ...[
@@ -412,7 +412,7 @@ class _MonitorTab extends StatelessWidget {
             Expanded(child: _TunnelChip(t: frame!.tunnel!)),
           ],
         ],
-      )),
+      ),
     ];
 
     return ListView.separated(
