@@ -1,5 +1,5 @@
 // lib/services/notification_service.dart
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/foundation.dart' show debugPrint, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart' show Color;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,7 +15,11 @@ class NotificationService {
       const ios     = DarwinInitializationSettings();
       const linux   = LinuxInitializationSettings(defaultActionName: 'Open');
       await _plugin.initialize(
-        const InitializationSettings(android: android, iOS: ios, linux: linux),
+        const InitializationSettings(
+          android: android,
+          iOS: ios,
+          linux: linux,
+        ),
       );
       _ready = true;
     } catch (e) {
@@ -31,6 +35,7 @@ class NotificationService {
     required String body,
   }) async {
     if (!_ready) return;
+    if (defaultTargetPlatform == TargetPlatform.windows) return;
     final channel = AndroidNotificationDetails(
       'ps4_status', 'PS4 Status',
       channelDescription: 'Live PS4 system status',
@@ -49,6 +54,7 @@ class NotificationService {
     required String body,
   }) async {
     if (!_ready) return;
+    if (defaultTargetPlatform == TargetPlatform.windows) return;
     const channel = AndroidNotificationDetails(
       'ps4_alert', 'PS4 Alerts',
       channelDescription: 'Temperature and fault alerts',
