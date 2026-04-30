@@ -16,7 +16,7 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen>
-{
+    with TickerProviderStateMixin {
   final _ctrl    = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isTunnel = false;
@@ -25,6 +25,10 @@ class _ConnectScreenState extends State<ConnectScreen>
 
   List<PayloadRecord> _payloadHistory = [];
   final _payloadSender = const PayloadSenderService();
+  late final AnimationController _entranceCtrl;
+  late final Animation<double> _entranceFade;
+  late final Animation<Offset> _entranceSlide;
+  late final AnimationController _heroCtrl;
 
 
   @override
@@ -33,6 +37,19 @@ class _ConnectScreenState extends State<ConnectScreen>
     final cp = context.read<ConnectionProvider>();
     _ctrl.text = cp.rawInput;
     _isTunnel  = cp.isTunnel;
+    _entranceCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 560),
+    )..forward();
+    _entranceFade = CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter);
+    _entranceSlide = Tween<Offset>(
+      begin: const Offset(0, 0.03),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entranceCtrl, curve: AppCurves.enter));
+    _heroCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 9),
+    )..repeat(reverse: true);
     _loadLastTunnel();
     _loadPayloadHistory();
   }
@@ -160,17 +177,21 @@ class _ConnectScreenState extends State<ConnectScreen>
         backgroundColor: Colors.transparent,
         resizeToAvoidBottomInset: true,
         body: SafeArea(
-          child: Form(
-            key: _formKey,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 560),
-                child: SingleChildScrollView(
+          child: FadeTransition(
+            opacity: _entranceFade,
+            child: SlideTransition(
+              position: _entranceSlide,
+              child: Form(
+                key: _formKey,
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
               child: Column(children: [
                 const SizedBox(height: 48),
-                const _HeroTitle(),
+                _LiquidHero(ctrl: _heroCtrl),
                 const SizedBox(height: AppSpacing.xl),
 
                 if (cp.rawInput.isNotEmpty || _lastTunnelUrl != null) ...[
@@ -317,6 +338,8 @@ class _ConnectScreenState extends State<ConnectScreen>
                 ),
               ),
             ),
+              ),
+            ),
           ),
         ),
       ),
@@ -459,12 +482,56 @@ class _ConnectScreenState extends State<ConnectScreen>
 
   @override
   void dispose() {
+    _entranceCtrl.dispose();
+    _heroCtrl.dispose();
     _ctrl.dispose();
     super.dispose();
   }
 }
 
 // â”€â”€ Widgets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+class _LiquidHero extends StatelessWidget {
+  const _LiquidHero({required this.ctrl});
+  final AnimationController ctrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: ctrl,
+      builder: (_, __) {
+        final t = ctrl.value;
+        final dx = (t - 0.5) * 18;
+        final dy = (0.5 - t).abs() * 8;
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            Transform.translate(
+              offset: Offset(dx, dy),
+              child: Container(
+                width: 250,
+                height: 96,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(40),
+                  gradient: LinearGradient(
+                    colors: [
+                      Bk.accent.withValues(alpha: 0.12),
+                      const Color(0xFFA5B4FC).withValues(alpha: 0.1),
+                      Colors.transparent,
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+              ),
+            ),
+            const _HeroTitle(),
+          ],
+        );
+      },
+    );
+  }
+}
 
 /// Centered wordmark used as the top-of-screen identity.
 class _HeroTitle extends StatelessWidget {
