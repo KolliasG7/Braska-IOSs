@@ -134,8 +134,11 @@ class _LogsScreenState extends State<LogsScreen> {
         ),
         body: SafeArea(
           top: false,
-          child: Column(
-            children: [
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Column(
+                children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.lg, AppSpacing.sm,
@@ -168,7 +171,9 @@ class _LogsScreenState extends State<LogsScreen> {
                     ),
                   ),
                 ),
-            ],
+                ],
+              ),
+            ),
           ),
         ),
       ),

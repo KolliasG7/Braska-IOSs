@@ -20,7 +20,7 @@ class SettingsScreen extends StatefulWidget {
   @override State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen> with TickerProviderStateMixin {
   final _ipCtrl   = TextEditingController();
   final _portCtrl = TextEditingController(text: '9023');
 
@@ -32,9 +32,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool  _clearingToken = false;
   final _payloadSender = const PayloadSenderService();
 
+  late TabController _diagTabController;
+
   @override
   void initState() {
     super.initState();
+    _diagTabController = TabController(length: 4, vsync: this);
     _loadPayloadHistory();
     _loadSavedTarget();
   }
@@ -43,6 +46,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void dispose() {
     _ipCtrl.dispose();
     _portCtrl.dispose();
+    _diagTabController.dispose();
     super.dispose();
   }
 
@@ -98,7 +102,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _injectPayload(String ip, int port, File file) async {
     if (!mounted) return;
-    _snack('Connecting to $ip:$port…');
+    _snack('Connecting to $ip:$port...');
     try {
       await _payloadSender.send(
         ip: ip, port: port, file: file,
@@ -107,7 +111,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).clearSnackBars();
       final fileName = file.path.split(Platform.pathSeparator).last;
-      _snack('Sending $fileName…');
+      _snack('Sending $fileName...');
 
       await PayloadHistoryService.save(PayloadRecord(
         ip: ip, port: port, fileName: fileName,
@@ -218,7 +222,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await cp.clearToken();
     if (!mounted) return;
     setState(() => _clearingToken = false);
-    _snack('Token cleared — re-authenticate to continue');
+    _snack('Token cleared - re-authenticate to continue');
   }
 
   Future<void> _doChangePassword() async {
@@ -229,7 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       builder: (_) => const _ChangePasswordDialog(),
     );
     if (changed == true && mounted) {
-      _snack('Password changed — session kept alive', success: true);
+      _snack('Password changed - session kept alive', success: true);
     }
   }
 
@@ -254,206 +258,222 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl, AppSpacing.md,
                   AppSpacing.xl, AppSpacing.xxxl),
-              child: RepaintBoundary(
-                child: Column(children: [
-                _Section(
-                  icon: Icons.visibility_outlined,
-                  title: 'Display',
-                  rows: [
-                    _ToggleRow(
-                      label: 'CPU graph',
-                      sub: 'Show processor usage sparkline',
-                      value: showCpuGraph,
-                      onChanged: cp.toggleCpuGraph,
-                    ),
-                    _ToggleRow(
-                      label: 'RAM graph',
-                      sub: 'Show memory usage sparkline',
-                      value: showRamGraph,
-                      onChanged: cp.toggleRamGraph,
-                    ),
-                    _ToggleRow(
-                      label: 'Thermal graph',
-                      sub: 'Show temperature sparkline',
-                      value: showThermalGraph,
-                      onChanged: cp.toggleThermalGraph,
-                    ),
-                    _ToggleRow(
-                      label: 'Status notifications',
-                      sub: 'Enable system notifications',
-                      value: showNotifications,
-                      onChanged: cp.toggleNotifications,
-                    ),
-                    _ToggleRow(
-                      label: 'Reduce motion',
-                      sub: 'Minimize animations',
-                      value: reduceMotion,
-                      onChanged: cp.toggleReduceMotion,
-                    ),
-                  ],
-                ),
-                if (isConnected) ...[
-                  const SizedBox(height: AppSpacing.xl),
-                  _DaemonSettingsSection(api: cp.api),
-                  const SizedBox(height: AppSpacing.xl),
-                  _CapabilitiesSection(api: cp.api),
-                  const SizedBox(height: AppSpacing.xl),
-                  _DiagnosticsSection(api: cp.api),
-                ],
-                const SizedBox(height: AppSpacing.xl),
-                _Section(
-                  icon: Icons.send_outlined,
-                  title: 'Payload Injection',
-                  content: Column(children: [
-                    Row(children: [
-                      Expanded(flex: 3, child: TextField(
-                        controller: _ipCtrl,
-                        style: T.mono,
-                        cursorColor: Bk.accent,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                        ],
-                        decoration: glassInputDecoration(
-                          hintText: 'Target IP',
-                          prefixIcon: Icons.lan_outlined,
-                          dense: true,
-                        ),
-                      )),
-                      const SizedBox(width: AppSpacing.md),
-                      Expanded(flex: 1, child: TextField(
-                        controller: _portCtrl,
-                        style: T.mono,
-                        cursorColor: Bk.accent,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                        decoration: glassInputDecoration(
-                          hintText: 'Port',
-                          dense: true,
-                        ),
-                      )),
-                    ]),
-                    const SizedBox(height: AppSpacing.md),
-                    _FilePickerRow(
-                      file: _selectedFile,
-                      sizeKb: _selectedFileSizeKb,
-                      onTap: _pickFile,
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    AppButton(
-                      label: _sending ? 'Sending…' : 'Send payload',
-                      icon: Icons.rocket_launch_outlined,
-                      loading: _sending,
-                      onPressed: _sending ? null : _sendPayload,
-                      expand: true,
-                    ),
-                  ]),
-                ),
-                if (_history.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xl),
-                  _Section(
-                    icon: Icons.history_outlined,
-                    title: 'Recent Payloads',
-                    trailing: TextButton(
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md, vertical: 6),
-                        foregroundColor: Bk.danger,
-                      ),
-                      onPressed: () async {
-                        HapticFeedback.selectionClick();
-                        await PayloadHistoryService.clear();
-                        _loadPayloadHistory();
-                      },
-                      child: const Text('Clear all',
-                        style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.w700)),
-                    ),
-                    content: Column(children: [
-                      for (int i = 0; i < _history.length; i++)
-                        Padding(
-                          padding: EdgeInsets.only(
-                              top: i == 0 ? 0 : AppSpacing.sm),
-                          child: _HistoryTile(
-                            record: _history[i],
-                            onTap: () {
-                              final rec = _history[i];
-                              HapticFeedback.selectionClick();
-                              _applyHistoryRecord(rec);
-                            },
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1100),
+                  child: RepaintBoundary(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth >= 980;
+
+                        final leftChildren = <Widget>[
+                          _Section(
+                            icon: Icons.visibility_outlined,
+                            title: 'Display',
+                            rows: [
+                              _ToggleRow(
+                                label: 'CPU graph',
+                                sub: 'Show processor usage sparkline',
+                                value: showCpuGraph,
+                                onChanged: cp.toggleCpuGraph,
+                              ),
+                              _ToggleRow(
+                                label: 'RAM graph',
+                                sub: 'Show memory usage sparkline',
+                                value: showRamGraph,
+                                onChanged: cp.toggleRamGraph,
+                              ),
+                              _ToggleRow(
+                                label: 'Thermal graph',
+                                sub: 'Show temperature sparkline',
+                                value: showThermalGraph,
+                                onChanged: cp.toggleThermalGraph,
+                              ),
+                              _ToggleRow(
+                                label: 'Status notifications',
+                                sub: 'Enable system notifications',
+                                value: showNotifications,
+                                onChanged: cp.toggleNotifications,
+                              ),
+                              _ToggleRow(
+                                label: 'Reduce motion',
+                                sub: 'Minimize animations',
+                                value: reduceMotion,
+                                onChanged: cp.toggleReduceMotion,
+                              ),
+                            ],
                           ),
-                        ),
-                    ]),
-                  ),
-                ],
-                if (isConnected) ...[
-                  const SizedBox(height: AppSpacing.xl),
-                  _Section(
-                    icon: Icons.link_outlined,
-                    title: 'Connection',
-                    content: Column(children: [
-                      AppButton(
-                        label: 'Disconnect',
-                        icon: Icons.link_off_outlined,
-                        variant: ButtonVariant.destructive,
-                        loading: _disconnecting,
-                        onPressed: (_disconnecting || _clearingToken)
-                            ? null : _doDisconnect,
-                        expand: true,
-                      ),
-                      if (hasToken) ...[
-                        const SizedBox(height: AppSpacing.md),
-                        AppButton(
-                          label: 'Clear saved token',
-                          icon: Icons.key_off_outlined,
-                          variant: ButtonVariant.glass,
-                          loading: _clearingToken,
-                          onPressed: (!_disconnecting && !_clearingToken)
-                              ? _doClearToken
-                              : null,
-                          expand: true,
-                        ),
-                      ],
-                    ]),
-                  ),
-                  if (hasToken) ...[
-                    const SizedBox(height: AppSpacing.xl),
-                    _Section(
-                      icon: Icons.lock_outline,
-                      title: 'Security',
-                      content: AppButton(
-                        label: 'Change password',
-                        icon: Icons.key_outlined,
-                        variant: ButtonVariant.glass,
-                        onPressed: (_disconnecting || _clearingToken)
-                            ? null : _doChangePassword,
-                        expand: true,
-                      ),
+                          if (isConnected) ...[
+                            const SizedBox(height: AppSpacing.xl),
+                            _DiagnosticsSection(
+                              api: cp.api,
+                              tabController: _diagTabController,
+                              canOpenLogs: !_disconnecting && !_clearingToken,
+                            ),
+                          ],
+                        ];
+
+                        final rightChildren = <Widget>[
+                          _Section(
+                            icon: Icons.send_outlined,
+                            title: 'Payload Injection',
+                            content: Column(children: [
+                              Row(children: [
+                                Expanded(flex: 3, child: TextField(
+                                  controller: _ipCtrl,
+                                  style: T.mono,
+                                  cursorColor: Bk.accent,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                                  ],
+                                  decoration: glassInputDecoration(
+                                    hintText: 'Target IP',
+                                    prefixIcon: Icons.lan_outlined,
+                                    dense: true,
+                                  ),
+                                )),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(flex: 1, child: TextField(
+                                  controller: _portCtrl,
+                                  style: T.mono,
+                                  cursorColor: Bk.accent,
+                                  keyboardType: TextInputType.number,
+                                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                  decoration: glassInputDecoration(
+                                    hintText: 'Port',
+                                    dense: true,
+                                  ),
+                                )),
+                              ]),
+                              const SizedBox(height: AppSpacing.md),
+                              _FilePickerRow(
+                                file: _selectedFile,
+                                sizeKb: _selectedFileSizeKb,
+                                onTap: _pickFile,
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              AppButton(
+                                label: _sending ? 'Sending...' : 'Send payload',
+                                icon: Icons.rocket_launch_outlined,
+                                loading: _sending,
+                                onPressed: _sending ? null : _sendPayload,
+                                expand: true,
+                              ),
+                            ]),
+                          ),
+                          if (_history.isNotEmpty) ...[
+                            const SizedBox(height: AppSpacing.xl),
+                            _Section(
+                              icon: Icons.history_outlined,
+                              title: 'Recent Payloads',
+                              trailing: TextButton(
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.md, vertical: 6),
+                                  foregroundColor: Bk.danger,
+                                ),
+                                onPressed: () async {
+                                  HapticFeedback.selectionClick();
+                                  await PayloadHistoryService.clear();
+                                  _loadPayloadHistory();
+                                },
+                                child: const Text('Clear all',
+                                  style: TextStyle(
+                                    fontSize: 12, fontWeight: FontWeight.w700)),
+                              ),
+                              content: Column(children: [
+                                for (int i = 0; i < _history.length; i++)
+                                  Padding(
+                                    padding: EdgeInsets.only(
+                                        top: i == 0 ? 0 : AppSpacing.sm),
+                                    child: _HistoryTile(
+                                      record: _history[i],
+                                      onTap: () {
+                                        final rec = _history[i];
+                                        HapticFeedback.selectionClick();
+                                        _applyHistoryRecord(rec);
+                                      },
+                                    ),
+                                  ),
+                              ]),
+                            ),
+                          ],
+                          if (isConnected) ...[
+                            const SizedBox(height: AppSpacing.xl),
+                            _Section(
+                              icon: Icons.link_outlined,
+                              title: 'Connection',
+                              content: Column(children: [
+                                AppButton(
+                                  label: 'Disconnect',
+                                  icon: Icons.link_off_outlined,
+                                  variant: ButtonVariant.destructive,
+                                  loading: _disconnecting,
+                                  onPressed: (_disconnecting || _clearingToken)
+                                      ? null : _doDisconnect,
+                                  expand: true,
+                                ),
+                                if (hasToken) ...[
+                                  const SizedBox(height: AppSpacing.md),
+                                  AppButton(
+                                    label: 'Clear saved token',
+                                    icon: Icons.key_off_outlined,
+                                    variant: ButtonVariant.glass,
+                                    loading: _clearingToken,
+                                    onPressed: (!_disconnecting && !_clearingToken)
+                                        ? _doClearToken
+                                        : null,
+                                    expand: true,
+                                  ),
+                                ],
+                              ]),
+                            ),
+                            if (hasToken) ...[
+                              const SizedBox(height: AppSpacing.xl),
+                              _Section(
+                                icon: Icons.lock_outline,
+                                title: 'Security',
+                                content: AppButton(
+                                  label: 'Change password',
+                                  icon: Icons.key_outlined,
+                                  variant: ButtonVariant.glass,
+                                  onPressed: (_disconnecting || _clearingToken)
+                                      ? null : _doChangePassword,
+                                  expand: true,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ];
+
+                        if (!isWide) {
+                          return Column(children: [
+                            ...leftChildren,
+                            const SizedBox(height: AppSpacing.xl),
+                            ...rightChildren,
+                            const SizedBox(height: AppSpacing.xxl),
+                            const _AboutFooter(),
+                          ]);
+                        }
+
+                        return Column(children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(child: Column(children: leftChildren)),
+                              const SizedBox(width: AppSpacing.xl),
+                              Expanded(child: Column(children: rightChildren)),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.xxl),
+                          const _AboutFooter(),
+                        ]);
+                      },
                     ),
-                    const SizedBox(height: AppSpacing.xl),
-                    _Section(
-                      icon: Icons.article_outlined,
-                      title: 'Diagnostics',
-                      content: AppButton(
-                        label: 'View daemon logs',
-                        icon: Icons.terminal_outlined,
-                        variant: ButtonVariant.glass,
-                        onPressed: (_disconnecting || _clearingToken)
-                            ? null
-                            : () {
-                                HapticFeedback.selectionClick();
-                                Navigator.of(context).push(
-                                  FadeThroughRoute(child: const LogsScreen()),
-                                );
-                              },
-                        expand: true,
-                      ),
-                    ),
-                  ],
-                ],
-                const SizedBox(height: AppSpacing.xxl),
-                const _AboutFooter(),
-              ])),
+                  ),
+                ),
+              ),
             )),
           ]),
         ),
@@ -488,7 +508,7 @@ class _AboutFooterState extends State<_AboutFooter> {
     try {
       final info = await PackageInfo.fromPlatform();
       if (!mounted) return;
-      setState(() => _versionLine = 'v${info.version} · build ${info.buildNumber}');
+      setState(() => _versionLine = 'v${info.version} | build ${info.buildNumber}');
     } catch (_) {
       if (!mounted) return;
       setState(() => _versionLine = 'version unavailable');
@@ -510,7 +530,7 @@ class _AboutFooterState extends State<_AboutFooter> {
         ),
         const SizedBox(height: 4),
         const Text(
-          'by rmux · reworked by KolliasG7',
+          'by rmux | reworked by KolliasG7',
           style: TextStyle(
             color: Bk.textDim,
             fontSize: 10,
@@ -1016,88 +1036,374 @@ class _ChangePasswordDialogState extends State<_ChangePasswordDialog> {
   }
 }
 
-// ── Capabilities section ─────────────────────────────────────────────────────
+// ── Unified Diagnostics section with tabs ─────────────────────────────────────
 
-class _CapabilitiesSection extends StatefulWidget {
-  const _CapabilitiesSection({required this.api});
+class _DiagnosticsSection extends StatefulWidget {
+  const _DiagnosticsSection({
+    required this.api,
+    required this.tabController,
+    required this.canOpenLogs,
+  });
   final ApiService? api;
+  final TabController tabController;
+  final bool canOpenLogs;
 
-  @override State<_CapabilitiesSection> createState() => _CapabilitiesSectionState();
+  @override State<_DiagnosticsSection> createState() => _DiagnosticsSectionState();
 }
 
-class _CapabilitiesSectionState extends State<_CapabilitiesSection> {
+class _DiagnosticsSectionState extends State<_DiagnosticsSection> {
+  Map<String, dynamic>? _settings;
   Map<String, dynamic>? _caps;
-  bool _loading = true;
-  String? _err;
+  Map<String, dynamic>? _diag;
+  bool _loadingSettings = true;
+  bool _loadingCaps = true;
+  bool _loadingDiag = true;
+  bool _loadedSettings = false;
+  bool _loadedCaps = false;
+  bool _loadedDiag = false;
+  bool _saving = false;
+  String? _errSettings;
+  String? _errCaps;
+  String? _errDiag;
+
+  final _pollIntervalCtrl = TextEditingController();
+  final _fanDebounceCtrl = TextEditingController();
+  final _remotePortCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _load();
+    widget.tabController.addListener(_onTabChanged);
+    _ensureTabLoaded(widget.tabController.index);
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    widget.tabController.removeListener(_onTabChanged);
+    _pollIntervalCtrl.dispose();
+    _fanDebounceCtrl.dispose();
+    _remotePortCtrl.dispose();
+    super.dispose();
+  }
+
+  void _onTabChanged() {
+    if (!widget.tabController.indexIsChanging) {
+      _ensureTabLoaded(widget.tabController.index);
+    }
+  }
+
+  void _ensureTabLoaded(int tabIndex) {
     if (widget.api == null) return;
-    setState(() { _loading = true; _err = null; });
+    if (tabIndex == 0 && !_loadedSettings) _loadSettings();
+    if (tabIndex == 1 && !_loadedCaps) _loadCaps();
+    if (tabIndex == 2 && !_loadedDiag) _loadDiag();
+  }
+
+  Future<void> _loadSettings() async {
+    if (widget.api == null) return;
+    setState(() { _loadingSettings = true; _errSettings = null; });
+    try {
+      final s = await widget.api!.getSettings();
+      if (!mounted) return;
+      setState(() {
+        _settings = s;
+        _loadingSettings = false;
+        _loadedSettings = true;
+        _pollIntervalCtrl.text = (s['poll_interval_ms'] as int? ?? 1000).toString();
+        _fanDebounceCtrl.text = (s['fan_debounce_ms'] as int? ?? 2000).toString();
+        _remotePortCtrl.text = (s['remote_port'] as int? ?? 9023).toString();
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingSettings = false;
+        _errSettings = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadCaps() async {
+    if (widget.api == null) return;
+    setState(() { _loadingCaps = true; _errCaps = null; });
     try {
       final c = await widget.api!.getCapabilities();
       if (!mounted) return;
       setState(() {
         _caps = c;
-        _loading = false;
+        _loadingCaps = false;
+        _loadedCaps = true;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _loading = false;
-        _err = e.toString();
+        _loadingCaps = false;
+        _errCaps = e.toString();
+      });
+    }
+  }
+
+  Future<void> _loadDiag() async {
+    if (widget.api == null) return;
+    setState(() { _loadingDiag = true; _errDiag = null; });
+    try {
+      final d = await widget.api!.getDiagnostics();
+      if (!mounted) return;
+      setState(() {
+        _diag = d;
+        _loadingDiag = false;
+        _loadedDiag = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingDiag = false;
+        _errDiag = e.toString();
+      });
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    if (widget.api == null) return;
+    setState(() { _saving = true; _errSettings = null; });
+    try {
+      final pollInterval = int.tryParse(_pollIntervalCtrl.text);
+      final fanDebounce = int.tryParse(_fanDebounceCtrl.text);
+      final remotePort = int.tryParse(_remotePortCtrl.text);
+
+      if (pollInterval == null || pollInterval < 100) {
+        setState(() { _saving = false; _errSettings = 'Poll interval must be at least 100ms'; });
+        return;
+      }
+      if (fanDebounce == null || fanDebounce < 0) {
+        setState(() { _saving = false; _errSettings = 'Fan debounce must be non-negative'; });
+        return;
+      }
+      if (remotePort == null || remotePort < 1 || remotePort > 65535) {
+        setState(() { _saving = false; _errSettings = 'Port must be between 1 and 65535'; });
+        return;
+      }
+
+      await widget.api!.updateSettings(
+        pollIntervalMs: pollInterval,
+        fanDebounceMs: fanDebounce,
+        remotePort: remotePort,
+      );
+      if (!mounted) return;
+      await _loadSettings();
+      if (!mounted) return;
+      setState(() { _saving = false; });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _errSettings = e.toString();
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) {
-      return const _Section(
-        icon: Icons.extension_outlined,
-        title: 'Capabilities',
-        content: Center(
-          child: SizedBox(
-            width: 20, height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2, color: Bk.accent),
+    return _Section(
+      icon: Icons.bug_report_outlined,
+      title: 'Diagnostics',
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Tab bar
+          Container(
+            decoration: BoxDecoration(
+              color: Bk.glassSubtle,
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(color: Bk.glassBorder, width: 1),
+            ),
+            child: TabBar(
+              controller: widget.tabController,
+              indicator: BoxDecoration(
+                color: Bk.accent.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              labelColor: Bk.accent,
+              unselectedLabelColor: Bk.textDim,
+              labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+              unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+              tabs: const [
+                Tab(text: 'Settings'),
+                Tab(text: 'Capabilities'),
+                Tab(text: 'Diagnostics'),
+                Tab(text: 'Logs'),
+              ],
+            ),
           ),
+          const SizedBox(height: AppSpacing.lg),
+          AnimatedBuilder(
+            animation: widget.tabController.animation!,
+            builder: (_, __) {
+              final activeIndex = widget.tabController.index;
+              _ensureTabLoaded(activeIndex);
+              return _buildTab(activeIndex);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTab(int index) {
+    switch (index) {
+      case 0:
+        return _buildSettingsTab();
+      case 1:
+        return _buildCapsTab();
+      case 2:
+        return _buildDiagTab();
+      case 3:
+        return _buildLogsTab();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildSettingsTab() {
+    if (_loadingSettings) {
+      return const Center(
+        child: SizedBox(
+          width: 20, height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2, color: Bk.accent),
         ),
       );
     }
 
-    if (_err != null) {
-      return _Section(
-        icon: Icons.extension_outlined,
-        title: 'Capabilities',
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_err!,
-              style: const TextStyle(color: Bk.danger, fontSize: 12)),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: _load,
-              child: const Text('Retry',
-                style: TextStyle(color: Bk.accent, fontSize: 12)),
+    if (_errSettings != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_errSettings!,
+            style: const TextStyle(color: Bk.danger, fontSize: 12)),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: _loadSettings,
+            child: const Text('Retry',
+              style: TextStyle(color: Bk.accent, fontSize: 12)),
+          ),
+        ],
+      );
+    }
+
+    final s = _settings!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+          _SettingRow(
+            label: 'Poll interval',
+            value: '${s['poll_interval_ms']} ms',
+            sub: 'Telemetry update frequency',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingRow(
+            label: 'Fan debounce',
+            value: '${s['fan_debounce_ms']} ms',
+            sub: 'Fan control delay',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingRow(
+            label: 'Remote port',
+            value: '${s['remote_port']}',
+            sub: 'API server port',
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingRow(
+            label: 'Remote enabled',
+            value: s['remote_enabled'] == true ? 'Yes' : 'No',
+            sub: 'Remote API access',
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _pollIntervalCtrl,
+                style: T.mono,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: glassInputDecoration(
+                  hintText: 'Poll interval (ms)',
+                  dense: true,
+                ),
+              ),
             ),
-          ],
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _fanDebounceCtrl,
+                style: T.mono,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: glassInputDecoration(
+                  hintText: 'Fan debounce (ms)',
+                  dense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: TextField(
+                controller: _remotePortCtrl,
+                style: T.mono,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: glassInputDecoration(
+                  hintText: 'Port',
+                  dense: true,
+                ),
+              ),
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.md),
+          AppButton(
+            label: _saving ? 'Saving...' : 'Apply settings',
+            icon: Icons.save_outlined,
+            loading: _saving,
+            onPressed: _saving ? null : _saveSettings,
+            expand: true,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCapsTab() {
+    if (_loadingCaps) {
+      return const Center(
+        child: SizedBox(
+          width: 20, height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2, color: Bk.accent),
         ),
+      );
+    }
+
+    if (_errCaps != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_errCaps!,
+            style: const TextStyle(color: Bk.danger, fontSize: 12)),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: _loadCaps,
+            child: const Text('Retry',
+              style: TextStyle(color: Bk.accent, fontSize: 12)),
+          ),
+        ],
       );
     }
 
     final c = _caps!;
-    return _Section(
-      icon: Icons.extension_outlined,
-      title: 'Capabilities',
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
           _CapRow(
             label: 'Fan',
             available: _bool(c['fan']?['available']),
@@ -1137,12 +1443,149 @@ class _CapabilitiesSectionState extends State<_CapabilitiesSection> {
             available: _bool(c['files']?['available']),
             write: false,
           ),
+      ],
+    );
+  }
+
+  Widget _buildDiagTab() {
+    if (_loadingDiag) {
+      return const Center(
+        child: SizedBox(
+          width: 20, height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2, color: Bk.accent),
+        ),
+      );
+    }
+
+    if (_errDiag != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_errDiag!,
+            style: const TextStyle(color: Bk.danger, fontSize: 12)),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: _loadDiag,
+            child: const Text('Retry',
+              style: TextStyle(color: Bk.accent, fontSize: 12)),
+          ),
         ],
-      ),
+      );
+    }
+
+    final d = _diag!;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+          _DiagRow(label: 'Status', value: d['status'] as String? ?? 'Unknown'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Peer IP', value: d['peer_ip'] as String? ?? 'Unknown'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Auth required', value: _bool(d['auth_required']) ? 'Yes' : 'No'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Remote enabled', value: _bool(d['remote_enabled']) ? 'Yes' : 'No'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Remote port', value: '${d['remote_port'] ?? 'N/A'}'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Kernel', value: d['kernel'] as String? ?? 'Unavailable'),
+          const SizedBox(height: AppSpacing.sm),
+          _DiagRow(label: 'Hardware variant', value: d['hardware_variant'] as String? ?? 'Unknown'),
+          const SizedBox(height: AppSpacing.md),
+          const Divider(color: Bk.glassBorder),
+          const SizedBox(height: AppSpacing.md),
+          const Text('Component status',
+            style: TextStyle(
+              color: Bk.textSec, fontSize: 11,
+              fontWeight: FontWeight.w700)),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'Fan',
+            available: _bool(d['fan']?['available']),
+            message: d['fan']?['message'] as String?,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'LED',
+            available: _bool(d['led']?['available']),
+            message: d['led']?['message'] as String?,
+            extra: _bool(d['led']?['thermal_mode_supported']) ? 'Thermal mode supported' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'GPU',
+            available: _bool(d['gpu']?['available']),
+            message: d['gpu']?['message'] as String?,
+            warning: d['gpu']?['warning'] as String?,
+            extra: _bool(d['gpu']?['supported_hardware']) ? 'Supported hardware' : null,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          _CompStatus(
+            label: 'HDMI',
+            available: _bool(d['hdmi']?['available']),
+            message: d['hdmi']?['message'] as String?,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildLogsTab() {
+    return AppButton(
+      label: 'View daemon logs',
+      icon: Icons.terminal_outlined,
+      variant: ButtonVariant.glass,
+      onPressed: widget.canOpenLogs
+          ? () {
+              HapticFeedback.selectionClick();
+              Navigator.of(context).push(
+                FadeThroughRoute(child: const LogsScreen()),
+              );
+            }
+          : null,
+      expand: true,
     );
   }
 
   bool _bool(dynamic v) => v == true;
+}
+
+class _SettingRow extends StatelessWidget {
+  const _SettingRow({
+    required this.label,
+    required this.value,
+    required this.sub,
+  });
+
+  final String label;
+  final String value;
+  final String sub;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                style: const TextStyle(
+                  color: Bk.textPri, fontSize: 13,
+                  fontWeight: FontWeight.w600)),
+              Text(sub,
+                style: const TextStyle(
+                  color: Bk.textDim, fontSize: 10)),
+            ],
+          ),
+        ),
+        Text(value,
+          style: const TextStyle(
+            color: Bk.accent, fontSize: 13,
+            fontFamily: 'monospace', fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
 }
 
 class _CapRow extends StatelessWidget {
@@ -1215,143 +1658,6 @@ class _CapRow extends StatelessWidget {
       ],
     );
   }
-}
-
-// ── Diagnostics section ─────────────────────────────────────────────────────
-
-class _DiagnosticsSection extends StatefulWidget {
-  const _DiagnosticsSection({required this.api});
-  final ApiService? api;
-
-  @override State<_DiagnosticsSection> createState() => _DiagnosticsSectionState();
-}
-
-class _DiagnosticsSectionState extends State<_DiagnosticsSection> {
-  Map<String, dynamic>? _diag;
-  bool _loading = true;
-  String? _err;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    if (widget.api == null) return;
-    setState(() { _loading = true; _err = null; });
-    try {
-      final d = await widget.api!.getDiagnostics();
-      if (!mounted) return;
-      setState(() {
-        _diag = d;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _err = e.toString();
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return const _Section(
-        icon: Icons.bug_report_outlined,
-        title: 'Diagnostics',
-        content: Center(
-          child: SizedBox(
-            width: 20, height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2, color: Bk.accent),
-          ),
-        ),
-      );
-    }
-
-    if (_err != null) {
-      return _Section(
-        icon: Icons.bug_report_outlined,
-        title: 'Diagnostics',
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_err!,
-              style: const TextStyle(color: Bk.danger, fontSize: 12)),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: _load,
-              child: const Text('Retry',
-                style: TextStyle(color: Bk.accent, fontSize: 12)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final d = _diag!;
-    return _Section(
-      icon: Icons.bug_report_outlined,
-      title: 'Diagnostics',
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _DiagRow(label: 'Status', value: d['status'] as String? ?? 'Unknown'),
-          const SizedBox(height: AppSpacing.sm),
-          _DiagRow(label: 'Peer IP', value: d['peer_ip'] as String? ?? 'Unknown'),
-          const SizedBox(height: AppSpacing.sm),
-          _DiagRow(label: 'Auth required', value: _bool(d['auth_required']) ? 'Yes' : 'No'),
-          const SizedBox(height: AppSpacing.sm),
-          _DiagRow(label: 'Remote enabled', value: _bool(d['remote_enabled']) ? 'Yes' : 'No'),
-          const SizedBox(height: AppSpacing.sm),
-          _DiagRow(label: 'Remote port', value: '${d['remote_port'] ?? 'N/A'}'),
-          const SizedBox(height: AppSpacing.sm),
-          _DiagRow(label: 'Kernel', value: d['kernel'] as String? ?? 'Unavailable'),
-          const SizedBox(height: AppSpacing.sm),
-          _DiagRow(label: 'Hardware variant', value: d['hardware_variant'] as String? ?? 'Unknown'),
-          const SizedBox(height: AppSpacing.md),
-          const Divider(color: Bk.glassBorder),
-          const SizedBox(height: AppSpacing.md),
-          const Text('Component status',
-            style: TextStyle(
-              color: Bk.textSec, fontSize: 11,
-              fontWeight: FontWeight.w700)),
-          const SizedBox(height: AppSpacing.sm),
-          _CompStatus(
-            label: 'Fan',
-            available: _bool(d['fan']?['available']),
-            message: d['fan']?['message'] as String?,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _CompStatus(
-            label: 'LED',
-            available: _bool(d['led']?['available']),
-            message: d['led']?['message'] as String?,
-            extra: _bool(d['led']?['thermal_mode_supported']) ? 'Thermal mode supported' : null,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _CompStatus(
-            label: 'GPU',
-            available: _bool(d['gpu']?['available']),
-            message: d['gpu']?['message'] as String?,
-            warning: d['gpu']?['warning'] as String?,
-            extra: _bool(d['gpu']?['supported_hardware']) ? 'Supported hardware' : null,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _CompStatus(
-            label: 'HDMI',
-            available: _bool(d['hdmi']?['available']),
-            message: d['hdmi']?['message'] as String?,
-          ),
-        ],
-      ),
-    );
-  }
-
-  bool _bool(dynamic v) => v == true;
 }
 
 class _DiagRow extends StatelessWidget {
@@ -1452,260 +1758,6 @@ class _CompStatus extends StatelessWidget {
             ),
           ),
         ],
-      ],
-    );
-  }
-}
-
-// ── Daemon settings section ─────────────────────────────────────────────────
-
-class _DaemonSettingsSection extends StatefulWidget {
-  const _DaemonSettingsSection({required this.api});
-  final ApiService? api;
-
-  @override State<_DaemonSettingsSection> createState() => _DaemonSettingsSectionState();
-}
-
-class _DaemonSettingsSectionState extends State<_DaemonSettingsSection> {
-  Map<String, dynamic>? _settings;
-  bool _loading = true;
-  bool _saving = false;
-  String? _err;
-
-  final _pollIntervalCtrl = TextEditingController();
-  final _fanDebounceCtrl = TextEditingController();
-  final _remotePortCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _pollIntervalCtrl.dispose();
-    _fanDebounceCtrl.dispose();
-    _remotePortCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    if (widget.api == null) return;
-    setState(() { _loading = true; _err = null; });
-    try {
-      final s = await widget.api!.getSettings();
-      if (!mounted) return;
-      setState(() {
-        _settings = s;
-        _loading = false;
-        _pollIntervalCtrl.text = (s['poll_interval_ms'] as int? ?? 1000).toString();
-        _fanDebounceCtrl.text = (s['fan_debounce_ms'] as int? ?? 2000).toString();
-        _remotePortCtrl.text = (s['remote_port'] as int? ?? 9023).toString();
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _err = e.toString();
-      });
-    }
-  }
-
-  Future<void> _save() async {
-    if (widget.api == null) return;
-    setState(() { _saving = true; _err = null; });
-    try {
-      final pollInterval = int.tryParse(_pollIntervalCtrl.text);
-      final fanDebounce = int.tryParse(_fanDebounceCtrl.text);
-      final remotePort = int.tryParse(_remotePortCtrl.text);
-
-      if (pollInterval == null || pollInterval < 100) {
-        setState(() { _saving = false; _err = 'Poll interval must be at least 100ms'; });
-        return;
-      }
-      if (fanDebounce == null || fanDebounce < 0) {
-        setState(() { _saving = false; _err = 'Fan debounce must be non-negative'; });
-        return;
-      }
-      if (remotePort == null || remotePort < 1 || remotePort > 65535) {
-        setState(() { _saving = false; _err = 'Port must be between 1 and 65535'; });
-        return;
-      }
-
-      await widget.api!.updateSettings(
-        pollIntervalMs: pollInterval,
-        fanDebounceMs: fanDebounce,
-        remotePort: remotePort,
-      );
-      if (!mounted) return;
-      await _load();
-      if (!mounted) return;
-      setState(() { _saving = false; });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _saving = false;
-        _err = e.toString();
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return const _Section(
-        icon: Icons.settings_applications_outlined,
-        title: 'Daemon Settings',
-        content: Center(
-          child: SizedBox(
-            width: 20, height: 20,
-            child: CircularProgressIndicator(
-              strokeWidth: 2, color: Bk.accent),
-          ),
-        ),
-      );
-    }
-
-    if (_err != null) {
-      return _Section(
-        icon: Icons.settings_applications_outlined,
-        title: 'Daemon Settings',
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_err!,
-              style: const TextStyle(color: Bk.danger, fontSize: 12)),
-            const SizedBox(height: AppSpacing.sm),
-            TextButton(
-              onPressed: _load,
-              child: const Text('Retry',
-                style: TextStyle(color: Bk.accent, fontSize: 12)),
-            ),
-          ],
-        ),
-      );
-    }
-
-    final s = _settings!;
-    return _Section(
-      icon: Icons.settings_applications_outlined,
-      title: 'Daemon Settings',
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SettingRow(
-            label: 'Poll interval',
-            value: '${s['poll_interval_ms']} ms',
-            sub: 'Telemetry update frequency',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingRow(
-            label: 'Fan debounce',
-            value: '${s['fan_debounce_ms']} ms',
-            sub: 'Fan control delay',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingRow(
-            label: 'Remote port',
-            value: '${s['remote_port']}',
-            sub: 'API server port',
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingRow(
-            label: 'Remote enabled',
-            value: s['remote_enabled'] == true ? 'Yes' : 'No',
-            sub: 'Remote API access',
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _pollIntervalCtrl,
-                style: T.mono,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: glassInputDecoration(
-                  hintText: 'Poll interval (ms)',
-                  dense: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: TextField(
-                controller: _fanDebounceCtrl,
-                style: T.mono,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: glassInputDecoration(
-                  hintText: 'Fan debounce (ms)',
-                  dense: true,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Expanded(
-              child: TextField(
-                controller: _remotePortCtrl,
-                style: T.mono,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: glassInputDecoration(
-                  hintText: 'Port',
-                  dense: true,
-                ),
-              ),
-            ),
-          ]),
-          const SizedBox(height: AppSpacing.md),
-          AppButton(
-            label: _saving ? 'Saving…' : 'Apply settings',
-            icon: Icons.save_outlined,
-            loading: _saving,
-            onPressed: _saving ? null : _save,
-            expand: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SettingRow extends StatelessWidget {
-  const _SettingRow({
-    required this.label,
-    required this.value,
-    required this.sub,
-  });
-
-  final String label;
-  final String value;
-  final String sub;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label,
-                style: const TextStyle(
-                  color: Bk.textPri, fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-              Text(sub,
-                style: const TextStyle(
-                  color: Bk.textDim, fontSize: 10)),
-            ],
-          ),
-        ),
-        Text(value,
-          style: const TextStyle(
-            color: Bk.accent, fontSize: 13,
-            fontFamily: 'monospace', fontWeight: FontWeight.w700)),
       ],
     );
   }

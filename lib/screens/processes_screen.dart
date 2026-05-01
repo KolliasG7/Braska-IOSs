@@ -160,7 +160,10 @@ class _ProcessesScreenState extends State<ProcessesScreen>
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: SafeArea(
-          child: Column(children: [
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: Column(children: [
             _Header(
               count: procs.length,
               sort: _sort,
@@ -246,7 +249,9 @@ class _ProcessesScreenState extends State<ProcessesScreen>
                 ),
               ),
             ),
-          ]),
+              ]),
+            ),
+          ),
         ),
       ),
     );

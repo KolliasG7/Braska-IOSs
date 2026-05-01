@@ -110,7 +110,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                       },
                     ),
                     Expanded(
-                      child: AnimatedSwitcher(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1100),
+                          child: AnimatedSwitcher(
                         // Phased fade-through via [tabBodyTransition]: the
                         // outgoing body vanishes in the first ~45% of the
                         // reverse, then the incoming body fades up in the
@@ -127,9 +130,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                         switchOutCurve: Curves.linear,
                         layoutBuilder: stackedLayoutBuilder,
                         transitionBuilder: tabBodyTransition,
-                        child: KeyedSubtree(
-                          key: ValueKey<int>(_tab),
-                          child: _tabBody(frame, cp),
+                            child: KeyedSubtree(
+                              key: ValueKey<int>(_tab),
+                              child: _tabBody(frame, cp),
+                            ),
+                          ),
                         ),
                       ),
                     ),

@@ -292,7 +292,14 @@ class _FilesScreenState extends State<FilesScreen> {
     return AppBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-        body: SafeArea(child: body),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1100),
+              child: body,
+            ),
+          ),
+        ),
       ),
     );
   }
